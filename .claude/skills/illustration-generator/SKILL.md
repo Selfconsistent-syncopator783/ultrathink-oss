@@ -1,5 +1,5 @@
 ---
-name: puter-illustration
+name: illustration-generator
 description: Auto-triggered illustration generator. Builds structured JSON prompts from user intent, then generates images via Gemini browser automation (Nano Banana 2).
 layer: domain
 category: ai-ml
@@ -18,10 +18,6 @@ triggers:
   - feature graphic
   - gemini image
   - gemini illustration
-  - puter illustration
-  - puter image
-  - free image
-  - free illustration
 inputs:
   - intent: What the user needs (e.g., "logo for ultrathink", "hero image for landing page")
   - style: Optional style direction (flat, isometric, line art, 3D, watercolor)
@@ -101,6 +97,14 @@ NO TEXT, NO WORDS, NO LETTERS.
 
 ### Phase 3: GENERATE — Execute via Gemini browser automation
 
+**Backend priority order:**
+
+1. **Gemini Browser Automation** (primary) — Uses saved Google session via Playwright
+2. **Gemini API** (fallback 1) — Requires `GEMINI_API_KEY` in `.env`
+3. **Puter.js** (fallback 2) — Free, no auth, rate-limited
+
+#### Primary: Gemini Browser Automation
+
 For each asset in the manifest, run:
 
 ```bash
@@ -116,6 +120,37 @@ npx tsx scripts/gemini-browser/generate.ts \
 - For logos or text-sensitive images, recommend Pro model but warn about limits
 - If generation fails, show the debug screenshot and suggest prompt adjustments
 - After each image, show the result to the user before continuing
+
+#### Fallback 1: Gemini API
+
+If no browser session exists and `GEMINI_API_KEY` is set:
+
+```typescript
+import { GoogleGenAI } from "@google/genai";
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+const response = await ai.models.generateContent({
+  model: "gemini-3.1-flash-image-preview",
+  contents: "<prompt from manifest>",
+  config: { responseModalities: ["TEXT", "IMAGE"] },
+});
+```
+
+#### Fallback 2: Puter.js (free, no auth)
+
+If neither browser session nor API key is available:
+
+```typescript
+const response = await fetch("https://api.puter.com/ai/txt2img", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    prompt: "<prompt from manifest>",
+    model: "gemini-3.1-flash-image-preview",
+  }),
+});
+const buffer = Buffer.from(await response.arrayBuffer());
+```
 
 ### Phase 4: DELIVER — Present results
 
@@ -161,9 +196,7 @@ When the user doesn't specify a style, pick based on context:
 | Blog / content | Watercolor or editorial style, rich colors |
 | Logo | Geometric, strong silhouette, 2-3 colors max |
 
-## Prerequisites
-
-The Gemini browser automation must be set up first. If not configured, guide the user:
+## Setup: Gemini Browser Automation
 
 ### Quick setup
 
@@ -199,40 +232,6 @@ Opens a browser → log in to Google → press Enter to save session.
 npm run gemini:auth -- --cookies cookies.txt --force
 ```
 
-## Fallback Methods
-
-If Gemini browser automation is not available (no session, no Playwright):
-
-### Fallback 1: Gemini API (requires API key)
-
-```bash
-# Set GEMINI_API_KEY in .env, then use @google/genai SDK
-npm install @google/genai
-```
-
-```javascript
-import { GoogleGenAI } from "@google/genai";
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-
-const response = await ai.models.generateContent({
-  model: "gemini-3.1-flash-image-preview",
-  contents: "Generate an image: ...",
-  config: { responseModalities: ["TEXT", "IMAGE"] },
-});
-```
-
-### Fallback 2: Puter.js (free, rate-limited)
-
-```html
-<script src="https://js.puter.com/v2/"></script>
-<script>
-  puter.ai.txt2img("...", { model: "gemini-3.1-flash-image-preview" })
-    .then(img => document.body.appendChild(img));
-</script>
-```
-
-Node.js requires `@heyputer/puter.js` + auth token. See Puter.js docs for details.
-
 ## Image Quality
 
 - Images are downloaded at **full resolution** from Google's CDN (`=s0` suffix)
@@ -261,9 +260,3 @@ Node.js requires `@heyputer/puter.js` + auth token. See Puter.js docs for detail
 → Phase 2: Creates 3-4 context-appropriate empty states
 → Phase 3: Generates each
 → Phase 4: Shows results
-
-## Credits
-
-- [Playwright](https://playwright.dev) — Browser automation (MIT)
-- [Google Gemini](https://gemini.google.com) — Image generation (Nano Banana 2 model)
-- [Puter.js](https://github.com/HeyPuter/puter) — Free fallback proxy (MIT)
