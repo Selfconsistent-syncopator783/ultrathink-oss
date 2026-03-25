@@ -4,12 +4,14 @@
 
 <h1 align="center">UltraThink</h1>
 <p align="center">
-  <strong>A Workflow OS for Claude Code</strong><br />
-  Persistent memory, 4-layer skill mesh, privacy hooks, and an observability dashboard — all running inside your CLI.
+  <strong>A Workflow OS for AI Code Editors</strong><br />
+  Persistent memory, 4-layer skill mesh, privacy hooks, and an observability dashboard.<br />
+  Works with Claude Code, Cursor, Windsurf, Antigravity, and GitHub Copilot.
 </p>
 
 <p align="center">
   <a href="#quickstart">Quickstart</a> &bull;
+  <a href="#editor-support">Editor Support</a> &bull;
   <a href="#architecture">Architecture</a> &bull;
   <a href="#features">Features</a> &bull;
   <a href="#database-schema">Schema</a> &bull;
@@ -21,17 +23,17 @@
 
 ## What is UltraThink?
 
-UltraThink transforms Claude Code from a stateless assistant into a **persistent, skill-aware agent** that remembers your preferences, enforces your coding standards, and adapts to your workflow — across sessions.
+UltraThink transforms AI code editors from stateless assistants into **persistent, skill-aware agents** that remember your preferences, enforce your coding standards, and adapt to your workflow — across sessions.
 
 ```
-You ──► Claude Code ──► UltraThink hooks fire ──► Skills matched, memories recalled
-                                                  ──► Context injected into Claude
-                                                  ──► Better, personalized responses
+You ──► AI Editor ──► UltraThink fires ──► Skills matched, memories recalled
+                                           ──► Context injected into the model
+                                           ──► Better, personalized responses
 ```
 
 ### Why?
 
-Claude Code is powerful but stateless. Every session starts fresh. UltraThink fixes that:
+AI code editors are powerful but stateless. Every session starts fresh. UltraThink fixes that:
 
 - **Memory**: Claude remembers your architectural decisions, patterns, and preferences across sessions
 - **Skills**: 125+ domain skills auto-activate based on intent detection (build, debug, deploy, design...)
@@ -88,6 +90,56 @@ claude
 ```bash
 npm run dashboard:dev
 # Open http://localhost:3333
+```
+
+---
+
+## Editor Support
+
+UltraThink is designed for Claude Code but works with any AI code editor that supports project-level instructions. Each editor gets different levels of integration depending on its capabilities.
+
+### Feature Compatibility Matrix
+
+| Feature | Claude Code | Cursor | Windsurf | Antigravity | Copilot |
+|---------|:-----------:|:------:|:--------:|:-----------:|:-------:|
+| Skills (125+ SKILL.md files) | Full | Read-only | Read-only | Read-only | Read-only |
+| Auto-trigger (intent scoring) | Full | — | — | — | — |
+| Skill graph traversal (linksTo) | Full | — | — | — | — |
+| Memory (persistent, cross-session) | Full | — | — | — | — |
+| Hooks (lifecycle events) | Full | — | — | — | — |
+| Privacy guard (.env/.pem blocking) | Full | — | — | — | — |
+| Quality gates (auto-format on edit) | Full | — | — | — | — |
+| Dashboard (observability UI) | Full | Full | Full | Full | Full |
+| Project rules (code standards) | `CLAUDE.md` | `.cursor/rules/` | `.windsurf/rules/` | `GEMINI.md` | `.github/copilot-instructions.md` |
+| Agent definitions (10 agents) | `AGENTS.md` | — | — | — | — |
+| MCP servers (VFS) | `.mcp.json` | `.mcp.json` | `.mcp.json` | — | — |
+| Statusline (context %, skills, quota) | Full | — | — | — | — |
+
+### Constraints by Editor
+
+**Claude Code** — Full integration. Every feature works: hooks fire on lifecycle events, skills auto-trigger via intent detection, memory persists across sessions, privacy hooks block sensitive file access. This is the primary target.
+
+**Cursor** — 4 rule files (`.cursor/rules/*.mdc`) inject project conventions and skill awareness. Cursor can read SKILL.md files when you reference them. No hooks, no auto-trigger, no memory. You must manually read skills: _"Read `.claude/skills/react/SKILL.md` and follow its workflow."_
+
+**Windsurf** — Single rule file (`.windsurf/rules/ultrathink.md`) provides project context. Cascade can read skill files from context. Same constraint as Cursor: no hooks, no memory.
+
+**Antigravity (Google)** — `GEMINI.md` at project root provides rules + a skill lookup table. No hooks, no memory. Skills must be referenced manually.
+
+**GitHub Copilot** — `.github/copilot-instructions.md` provides basic project rules. Most limited: no file reading during conversation, no skill awareness beyond what's in the instruction file.
+
+### Setup by Editor
+
+See **[docs/editor-setup.md](docs/editor-setup.md)** for step-by-step guides for each editor.
+
+**Quick summary:**
+
+```bash
+# Claude Code (full integration)
+./scripts/setup.sh && ./scripts/init-global.sh
+
+# Cursor / Windsurf / Antigravity / Copilot (rules-only)
+./scripts/sync-editors.sh --all    # Generate all editor configs
+./scripts/sync-editors.sh --cursor # Or target a specific editor
 ```
 
 ---
