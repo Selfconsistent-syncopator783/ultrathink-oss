@@ -67,10 +67,82 @@ Automates gemini.google.com with Playwright using your own Google account sessio
 
 ```bash
 npx playwright install chromium
+```
+
+Then authenticate using **one** of the two options below.
+
+### Option A: Cookie file import (recommended)
+
+Export your Google cookies from an existing browser session and import them directly.
+No need to log in again — just reuse the session you already have.
+
+**Step 1: Install a cookie export extension**
+
+| Browser | Extension |
+|---------|-----------|
+| Chrome | [Get cookies.txt LOCALLY](https://chromewebstore.google.com/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc) |
+| Firefox | [cookies.txt](https://addons.mozilla.org/en-US/firefox/addon/cookies-txt/) |
+| Edge | [Get cookies.txt LOCALLY](https://microsoftedge.microsoft.com/addons/detail/get-cookiestxt-locally/helldoamhjnbmnlgfcecllfkahkobhgc) |
+
+**Step 2: Export cookies**
+
+1. Go to [gemini.google.com](https://gemini.google.com) in your browser (make sure you're logged in)
+2. Click the cookie export extension icon
+3. Choose **"Export"** or **"Current site"** — saves a `cookies.txt` file
+4. For best results, export for **all Google domains** (`.google.com`), not just `gemini.google.com`
+
+**Step 3: Import into UltraThink**
+
+```bash
+npm run gemini:auth -- --cookies path/to/cookies.txt
+```
+
+The script will:
+- Parse the Netscape cookie file
+- Filter to Google-related cookies
+- Save as a Playwright session
+- Verify the session works by loading Gemini headlessly
+
+**Alternative: Manual cookie export (no extension needed)**
+
+1. Open [gemini.google.com](https://gemini.google.com) in Chrome
+2. Open DevTools → **Application** tab → **Cookies** → `https://gemini.google.com`
+3. Also check **Cookies** → `https://www.google.com` (auth cookies live here)
+4. Right-click → **Export** (or use console):
+   ```javascript
+   // Run in DevTools console on gemini.google.com
+   copy(document.cookie.split(';').map(c => {
+     const [name, ...val] = c.trim().split('=');
+     return `.google.com\tTRUE\t/\tTRUE\t0\t${name}\t${val.join('=')}`;
+   }).join('\n'));
+   ```
+5. Paste into a `cookies.txt` file with the Netscape header:
+   ```
+   # Netscape HTTP Cookie File
+   <paste here>
+   ```
+6. Import: `npm run gemini:auth -- --cookies cookies.txt`
+
+> **Note**: The DevTools console method only gets cookies for the current page domain.
+> The extension method is more reliable as it exports all `.google.com` cookies including `SID`, `HSID`, `SSID` which are required for auth.
+
+### Option B: Interactive browser login
+
+If you can't export cookies, open a fresh browser and log in:
+
+```bash
 npm run gemini:auth
 ```
 
-This opens a visible browser. Log into your Google account, wait for the Gemini chat to load, then press Enter in the terminal to save the session.
+This opens a visible Chromium window. Log into your Google account, wait for the Gemini chat to load, then press Enter in the terminal to save the session.
+
+### Overwrite existing session
+
+```bash
+npm run gemini:auth -- --cookies cookies.txt --force
+# or
+npm run gemini:auth -- --force
+```
 
 ### Generate images
 
@@ -116,7 +188,20 @@ npm run gemini:generate -- --prompt "..." --model pro --output logo.png
 | Free Google account | ~20-50/day | Free |
 | Google One / Gemini Premium | Unlimited | Subscription |
 
+### Image quality
+
+Images are downloaded at **full resolution** from Google's CDN (using the `=s0` suffix).
+The preview shown in Gemini's UI is a compressed thumbnail — the saved file is the original quality.
+
 ### Session expired?
+
+Re-export cookies from your browser and re-import:
+
+```bash
+npm run gemini:auth -- --cookies cookies.txt --force
+```
+
+Or delete and re-authenticate interactively:
 
 ```bash
 rm scripts/gemini-browser/.state/gemini-session.json
