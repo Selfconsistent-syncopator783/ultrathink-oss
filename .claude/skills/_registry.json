@@ -1056,5 +1056,28 @@
     ],
     "linksTo": [],
     "linkedFrom": []
+  },
+  "openclaw": {
+    "name": "openclaw",
+    "description": "OpenClaw/ClawdBot integration \u2014 CLAWD.md config, skill exposure tiers, messaging platform bridge",
+    "layer": "utility",
+    "category": "integration",
+    "triggers": [
+      "openclaw",
+      "clawdbot",
+      "clawd",
+      "bot integration",
+      "discord bot",
+      "telegram bot",
+      "messaging platform"
+    ],
+    "skillPath": ".claude/skills/openclaw/SKILL.md",
+    "linksTo": [
+      "scout",
+      "code-review",
+      "debug",
+      "onboard"
+    ],
+    "linkedFrom": []
   }
 }
