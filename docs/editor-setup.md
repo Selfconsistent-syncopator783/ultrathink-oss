@@ -57,7 +57,7 @@ npm run migrate
 ```
 
 This symlinks into `~/.claude/`:
-- **Skills** — 125+ SKILL.md files → `~/.claude/skills/`
+- **Skills** — 43 active SKILL.md files (340+ archived) → `~/.claude/skills/`
 - **Registry** — `_registry.json` → `~/.claude/skills/_registry.json`
 - **References** — Behavioral rules → `~/.claude/references/`
 - **Agents** — 10 agent definitions → `~/.claude/agents/`
@@ -84,7 +84,7 @@ npm run dashboard:dev
 
 | Feature | How it works |
 |---------|-------------|
-| **Auto-trigger** | Every prompt is scored against 125+ skills (<30ms). Top 5 inject context automatically |
+| **Auto-trigger** | Every prompt is scored against 43 active skills (<30ms). Top 5 inject context automatically |
 | **Memory** | Decisions, patterns, preferences persist across sessions via Neon Postgres |
 | **Privacy hooks** | `.env`, `.pem`, credentials blocked before Claude sees them |
 | **Quality gates** | Auto-format (Biome/Prettier), JSON validation, shell syntax check on every edit |
@@ -319,7 +319,7 @@ The `sync-editors.sh` script regenerates all editor config files from `CLAUDE.md
 |---------|:-----------:|:------:|:--------:|:-----------:|:-------:|
 | Project rules (code standards) | Full | Full | Full | Full | Full |
 | Dashboard (observability UI) | Full | Full | Full | Full | Full |
-| Skills (125+ SKILL.md files) | Auto | Manual | Manual | Manual | — |
+| Skills (43 active + 340+ archived) | Auto | Manual | Manual | Manual | — |
 | Skill graph traversal (linksTo) | Auto | — | — | — | — |
 | Auto-trigger (intent scoring) | Full | — | — | — | — |
 | Memory (cross-session) | Full | — | — | — | — |

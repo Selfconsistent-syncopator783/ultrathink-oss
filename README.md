@@ -14,6 +14,7 @@
   <a href="#editor-support">Editor Support</a> &bull;
   <a href="#architecture">Architecture</a> &bull;
   <a href="#features">Features</a> &bull;
+  <a href="#token-optimization">Token Optimization</a> &bull;
   <a href="#database-schema">Schema</a> &bull;
   <a href="#configuration">Configuration</a> &bull;
   <a href="#contributing">Contributing</a>
@@ -36,7 +37,7 @@ You ──► AI Editor ──► UltraThink fires ──► Skills matched, mem
 AI code editors are powerful but stateless. Every session starts fresh. UltraThink fixes that:
 
 - **Memory**: Claude remembers your architectural decisions, patterns, and preferences across sessions
-- **Skills**: 125+ domain skills auto-activate based on intent detection (build, debug, deploy, design...)
+- **Skills**: 43 active skills auto-activate based on intent detection (340+ more in archive)
 - **Privacy**: Hooks block access to `.env`, `.pem`, credentials before Claude sees them
 - **Observability**: Dashboard shows memory usage, skill activations, hook events, and token costs
 - **Quality gates**: Auto-format on edit, JSON validation, shell syntax checking
@@ -102,7 +103,7 @@ UltraThink is designed for Claude Code but works with any AI code editor that su
 
 | Feature | Claude Code | Cursor | Windsurf | Antigravity | Copilot |
 |---------|:-----------:|:------:|:--------:|:-----------:|:-------:|
-| Skills (125+ SKILL.md files) | Full | Read-only | Read-only | Read-only | Read-only |
+| Skills (43 active + 340+ archived) | Full | Read-only | Read-only | Read-only | Read-only |
 | Auto-trigger (intent scoring) | Full | — | — | — | — |
 | Skill graph traversal (linksTo) | Full | — | — | — | — |
 | Memory (persistent, cross-session) | Full | — | — | — | — |
@@ -186,7 +187,7 @@ See **[docs/editor-setup.md](docs/editor-setup.md)** for step-by-step guides for
 │  │                  debug)    test)        stripe)      │   │
 │  │                                                      │   │
 │  │  Auto-trigger: intent detection + graph traversal    │   │
-│  │  125+ skills, <30ms scoring per prompt               │   │
+│  │  43 active skills, <30ms scoring per prompt            │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -241,9 +242,23 @@ npx tsx memory/scripts/memory-runner.ts session-start
 | **Orchestrator** | 8 | Multi-step workflows | `gsd`, `plan`, `cook` |
 | **Hub** | 18 | Domain coordinators | `react`, `debug`, `test` |
 | **Utility** | 35 | Focused tools | `refactor`, `fix`, `audit` |
-| **Domain** | 64+ | Specific tech | `nextjs`, `stripe`, `drizzle` |
+| **Domain** | 64+ (archived) | Specific tech | `nextjs`, `stripe`, `drizzle` |
+
+> **Note**: Domain skills are archived by default. See [Token Optimization](#token-optimization) below.
 
 Skills auto-activate via intent detection. The prompt analyzer classifies each prompt into an intent (build, debug, refactor, explore, deploy, test, design, plan) and scores matching skills from `_registry.json`. Top 5 skills are injected as context directives.
+
+### Token Optimization
+
+UltraThink ships with skills archived by default to minimize system prompt token usage. Loading 370+ skills at once bloats the context window and degrades response quality.
+
+- **43 core skills are active** — orchestrators, hubs, and key utilities that cover most workflows
+- **340+ domain skills live in `.claude/skills/_archive/`** — restore any skill with `mv`:
+  ```bash
+  mv .claude/skills/_archive/stripe .claude/skills/stripe
+  ```
+- **Plugins are on-demand** — use `/plugins` to browse and enable plugin skills as needed rather than activating everything upfront
+- **Rule of thumb**: Keep only the skills you use regularly active. Archive the rest.
 
 ### Dashboard
 
@@ -543,8 +558,9 @@ ultrathink/
 │   │   ├── post-edit-quality.sh # Auto-format + validation
 │   │   ├── statusline.sh        # CLI status bar
 │   │   └── ...
-│   ├── skills/            # 125+ skill definitions (SKILL.md files)
+│   ├── skills/            # 43 active skill definitions (SKILL.md files)
 │   │   ├── _registry.json # Master skill index with triggers + graph edges
+│   │   ├── _archive/      # 340+ archived domain skills (restore with mv)
 │   │   ├── react/SKILL.md
 │   │   ├── nextjs/SKILL.md
 │   │   └── ...
@@ -683,7 +699,7 @@ npm run test
 
 - **Skill chaining**: Skills link via `linksTo`/`linkedFrom` edges — when `react` fires, it pulls in `nextjs`, `tailwindcss`, and `testing-library` automatically. No manual `/skill` invocations needed.
 - **Auto-activate**: Every prompt is scored against the full skill registry (<30ms). Top 5 skills inject their context automatically via `additionalContext`. You type naturally; skills fire behind the scenes.
-- **Full skill library**: 125+ skills across 4 layers — from orchestrators (`gsd`, `plan`, `cook`) down to domain specialists (`stripe`, `drizzle`, `shadcn-ui`). Fork and add your own.
+- **Full skill library**: 380+ skills across 4 layers — 43 active, 340+ archived. From orchestrators (`gsd`, `plan`, `cook`) down to domain specialists (`stripe`, `drizzle`, `shadcn-ui`). Restore what you need, archive what you don't.
 - **Open for contribution**: Clean skill format (single `SKILL.md`), registry-based graph, and documented hook lifecycle. Adding a skill takes 5 minutes. See [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Quality of life**: Session-persistent memory, privacy hooks that block credential access, auto-formatting on every edit, context-aware statusline, desktop notifications, stuck-agent detection, and a full observability dashboard.
 

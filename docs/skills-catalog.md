@@ -2,9 +2,9 @@
 
 ## Overview
 
-UltraThink contains **104 skills** organized across 4 layers. Skills are not isolated tools -- they form a mesh network where each skill declares explicit links to other skills it can call (`linksTo`) and skills that can call it (`linkedFrom`).
+UltraThink contains **43 active skills** (with 340+ archived in `_archive/`) organized across 4 layers. Skills are not isolated tools -- they form a mesh network where each skill declares explicit links to other skills it can call (`linksTo`) and skills that can call it (`linkedFrom`).
 
-Every skill lives in `.claude/skills/[name]/SKILL.md` with YAML frontmatter (metadata) and Markdown body (instructions).
+Every skill lives in `.claude/skills/[name]/SKILL.md` with YAML frontmatter (metadata) and Markdown body (instructions). Domain specialists are archived by default to reduce token usage -- restore any skill with `mv .claude/skills/_archive/<name> .claude/skills/<name>`.
 
 ## Layer 1: Orchestrators (7 skills)
 

@@ -11,10 +11,9 @@ and a layered architecture for complex engineering tasks.
 
 - **Runtime**: Claude Code CLI | **Dashboard**: Next.js 15 + Tailwind v4 (port 3333)
 - **Database**: Neon Postgres + pgvector + pg_trgm
-- **Skills**: 370+ across 4 layers (orchestrator, hub, utility, domain)
+- **Skills**: 43 active (340+ archived in `_archive/`)
 - **Memory**: Postgres-backed fuzzy search (tsvector + trigram + ILIKE)
-- **Hooks**: Pre/post tool hooks + auto-trigger
-- **Tools**: VFS (AST signatures) via MCP
+- **Hooks**: Pre/post tool hooks + auto-trigger | **Tools**: VFS (AST signatures) via MCP
 
 ## Skill Mesh
 
@@ -23,6 +22,12 @@ Skills link via `linksTo`/`linkedFrom` in `.claude/skills/_registry.json`.
 When a task matches a skill's triggers, load its `SKILL.md`.
 **Auto-trigger**: UserPromptSubmit hook scores skills, injects top 5 via `additionalContext`.
 **Intent detection**: build/debug/refactor/explore/deploy/test/design/plan → category boosting.
+
+## Token Optimization
+
+Domain skills archived in `.claude/skills/_archive/` to reduce prompt bloat. ~43 core skills stay active.
+Restore: `mv .claude/skills/_archive/<name> .claude/skills/<name>`
+Use `/plugins` to enable plugin skills on-demand rather than loading all at once.
 
 ## Memory
 
@@ -39,20 +44,13 @@ When a task matches a skill's triggers, load its `SKILL.md`.
 |------|------|
 | Config | `.claude/ck.json` |
 | Skills | `.claude/skills/[name]/SKILL.md` |
-| References | `.claude/references/*.md` |
+| Archive | `.claude/skills/_archive/` |
+| References | `.claude/references/*.md` (core, memory, privacy, quality, teaching) |
 | Hooks | `.claude/hooks/*.sh`, `.claude/hooks/prompt-analyzer.ts` |
 | Memory | `memory/` |
 | Dashboard | `dashboard/` |
 
-## References (read on demand, not auto-loaded)
-
-- `core.md` — Response patterns, skill selection, VFS usage, error handling
-- `memory.md` — Memory read/write discipline, compaction rules
-- `privacy.md` — File access control, sensitivity levels, logging
-- `quality.md` — Code standards (TS, React, SQL), review checklist
-- `teaching.md` — Coding level adaptation (beginner→expert)
-
 ## Compaction Guidance
 
 **Preserve**: current task + progress, files modified, decisions + rationale, pending work, debug context.
-**Drop**: exploratory reads already acted on, verbose tool output, drafts, CLAUDE.md (reloads), full file contents (reference by path).
+**Drop**: exploratory reads, verbose tool output, drafts, CLAUDE.md (reloads), full file contents (use paths).

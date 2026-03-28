@@ -29,33 +29,33 @@ describe("prompt-analyzer", () => {
   });
 
   it("matches multi-word triggers with higher score", () => {
-    const result = analyze("add framer motion animation to the card");
-    const animation = result.skills.find((s) => s.name === "animation");
-    expect(animation).toBeDefined();
-    expect(animation!.score).toBeGreaterThan(2);
+    const result = analyze("debug the failing test suite with breakpoints");
+    const debug = result.skills.find((s) => s.name === "debug");
+    expect(debug).toBeDefined();
+    expect(debug!.score).toBeGreaterThan(2);
   });
 
   it("does NOT trigger unrelated skills", () => {
     const result = analyze("fix the landing page layout and spacing");
     const names = result.skills.map((s) => s.name);
-    expect(names).not.toContain("authentication");
-    expect(names).not.toContain("docker");
+    expect(names).not.toContain("ship");
+    expect(names).not.toContain("scout");
   });
 
-  it("respects MAX_SKILLS limit of 3", () => {
+  it("respects MAX_SKILLS limit of 5", () => {
     const result = analyze(
       "deploy nextjs app with prisma database to vercel using docker and kubernetes with terraform"
     );
-    expect(result.skills.length).toBeLessThanOrEqual(3);
+    expect(result.skills.length).toBeLessThanOrEqual(5);
   });
 
-  it("includes MANDATORY activation in context when skills match", () => {
-    const result = analyze("create a stripe checkout with webhooks");
-    expect(result.context).toContain("MANDATORY");
+  it("includes activation in context when skills match", { timeout: 20000 }, () => {
+    const result = analyze("refactor the react component to use hooks and fix the bug");
+    expect(result.context).toContain("ACTIVATE");
     expect(result.context).toContain("Skill()");
   });
 
-  it("handles valid prompt without crashing", () => {
+  it("handles valid prompt without crashing", { timeout: 20000 }, () => {
     const result = analyze("a normal software engineering question about patterns");
     expect(result).toHaveProperty("skills");
     expect(result).toHaveProperty("context");

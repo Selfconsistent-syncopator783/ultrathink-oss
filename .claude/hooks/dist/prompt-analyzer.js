@@ -5,7 +5,7 @@
  * Returns top matching skills with confidence > threshold.
  *
  * Optimizations:
- * - Session-scoped registry cache (avoids re-parsing 84KB JSON every prompt)
+ * - Session-scoped registry cache (avoids re-parsing 26KB JSON every prompt)
  * - Session-scoped project stack cache (avoids 8+ fs.exists calls per prompt)
  * - Two-pass scoring: fast trigger scan first, full scoring only on candidates
  * - Intent detection: classifies prompt intent for category-level boosting
@@ -109,409 +109,26 @@ const DOMAIN_SIGNALS = {
         "dark mode",
         "light mode",
     ],
-    data: ["chart", "graph", "visualization", "dashboard", "analytics", "metrics", "monitoring"],
-    realtime: ["websocket", "socket", "real-time", "realtime", "live", "presence", "collaboration", "sync"],
-    state: ["state management", "zustand", "jotai", "redux", "store", "atom", "global state"],
-    editor: ["rich text", "editor", "wysiwyg", "tiptap", "prosemirror", "markdown editor", "content editing"],
-    mobile: ["mobile", "ios", "android", "react native", "expo", "app store", "responsive mobile", "native app"],
-    desktop: ["electron", "desktop app", "system tray", "native desktop", "cross-platform desktop"],
-    cms: ["cms", "content management", "headless cms", "payload", "sanity", "contentlayer", "strapi", "mdx"],
-    monorepo: ["monorepo", "workspace", "turborepo", "nx", "pnpm workspace", "lerna"],
     ai: ["openai", "gpt", "llm", "embedding", "vector", "ai sdk", "langchain", "ai agent", "chatbot"],
-    auth: ["auth", "login", "signup", "session", "jwt", "oauth", "sso", "password", "credentials", "next-auth"],
-    "data-fetching": ["fetch", "api call", "query", "mutation", "tanstack query", "react query", "swr", "data loading"],
-    a11y: ["accessibility", "a11y", "wcag", "aria", "screen reader", "keyboard nav", "focus trap", "alt text"],
-    seo: [
-        "seo",
-        "meta tags",
-        "opengraph",
-        "sitemap",
-        "robots.txt",
-        "structured data",
-        "schema.org",
-        "core web vitals",
-        "lighthouse",
-    ],
-    streaming: ["stream", "streaming", "sse", "server sent events", "readable stream", "chunked", "streaming ssr"],
-    upload: ["upload", "file upload", "dropzone", "drag and drop", "multipart", "presigned url", "chunked upload"],
-    scheduling: ["cron", "cron job", "scheduled", "scheduler", "periodic", "qstash", "recurring task"],
-    routing: [
-        "parallel route",
-        "intercepting route",
-        "slot",
-        "modal route",
-        "route group",
-        "dynamic route",
-        "catch-all route",
-    ],
-    "feature-management": [
-        "feature flag",
-        "feature toggle",
-        "ab test",
-        "experiment",
-        "gradual rollout",
-        "canary",
-        "statsig",
-        "launchdarkly",
-    ],
-    theming: ["dark mode", "light mode", "theme", "color scheme", "theme toggle", "system theme"],
-    observability: [
-        "opentelemetry",
-        "otel",
-        "tracing",
-        "distributed tracing",
-        "spans",
-        "telemetry",
-        "traces",
-        "metrics export",
-    ],
-    search: [
-        "search",
-        "full-text search",
-        "fuzzy search",
-        "algolia",
-        "meilisearch",
-        "elasticsearch",
-        "search bar",
-        "autocomplete",
-        "typeahead",
-    ],
-    pagination: [
-        "pagination",
-        "paginate",
-        "infinite scroll",
-        "cursor pagination",
-        "load more",
-        "next page",
-        "offset pagination",
-    ],
-    pdf: ["pdf", "pdf generation", "generate pdf", "pdf export", "react-pdf", "pdfkit", "document generation"],
-    oauth: [
-        "oauth",
-        "oauth2",
-        "openid connect",
-        "oidc",
-        "authorization code",
-        "PKCE",
-        "social login",
-        "identity provider",
-    ],
-    "web-components": ["web component", "custom element", "shadow dom", "html template", "slots"],
-    cors: ["cors", "cross-origin", "access-control", "preflight", "cors error", "cors headers", "origin policy"],
-    "web-workers": [
-        "web worker",
-        "worker thread",
-        "shared worker",
-        "comlink",
-        "off main thread",
-        "worker pool",
-        "postmessage",
-    ],
-    "code-splitting": [
-        "code splitting",
-        "dynamic import",
-        "react lazy",
-        "lazy loading",
-        "bundle size",
-        "tree shaking",
-        "bundle analyzer",
-        "chunk",
-    ],
-    "event-sourcing": [
-        "event sourcing",
-        "cqrs",
-        "event store",
-        "event driven",
-        "projections",
-        "domain events",
-        "command query",
-    ],
-    grpc: ["grpc", "protobuf", "protocol buffers", "grpc-web", "proto file", "grpc streaming", "rpc"],
-    transactions: [
-        "transaction",
-        "isolation level",
-        "deadlock",
-        "optimistic locking",
-        "saga pattern",
-        "two phase commit",
-        "database lock",
-        "rollback",
-    ],
-    "error-tracking": [
-        "sentry",
-        "error tracking",
-        "error monitoring",
-        "breadcrumbs",
-        "source maps sentry",
-        "crash reporting",
-    ],
-    openapi: ["openapi", "swagger", "openapi spec", "api spec", "swagger ui", "api documentation", "openapi schema"],
-    dns: ["dns", "dns record", "cname", "domain setup", "ssl certificate", "dns propagation", "nameserver", "mx record"],
-    analytics: [
-        "analytics",
-        "event tracking",
-        "plausible",
-        "posthog",
-        "google analytics",
-        "ga4",
-        "conversion tracking",
-        "page views",
-    ],
-    "component-patterns": [
-        "compound component",
-        "render props",
-        "headless component",
-        "polymorphic",
-        "hoc",
-        "higher order component",
-    ],
-    "a11y-testing": [
-        "axe-core",
-        "pa11y",
-        "a11y audit",
-        "screen reader test",
-        "keyboard testing",
-        "lighthouse accessibility",
-    ],
-    "test-strategy": ["test pyramid", "testing trophy", "test strategy", "what to test", "test coverage goal"],
-    "db-backup": ["database backup", "pg_dump", "wal archive", "point in time recovery", "db restore", "backup strategy"],
-    "env-mgmt": ["staging environment", "preview deploy", "environment promotion", "multi environment", "config per env"],
-    "cursor-config": ["cursor rules", "cursorrules", "cursor ide", "ai coding assistant", "cursor config"],
-    flask: ["flask", "flask blueprint", "flask extension", "flask-restful", "jinja2", "werkzeug", "flask sqlalchemy"],
-    nestjs: ["nestjs", "nest module", "nest guard", "nest interceptor", "nest pipe", "nest controller", "nest provider"],
-    vite: ["vite", "vite config", "vite plugin", "vite build", "vite hmr", "rollup plugin", "vite ssr"],
-    eslint: ["eslint", "eslint config", "eslint rule", "eslint plugin", "lint error", "flat config", "eslintrc"],
-    prettier: ["prettier", "prettier config", "code formatting", "prettier plugin", "format code"],
-    "github-actions": [
-        "github actions",
-        "github workflow",
-        "gh action",
-        "actions yaml",
-        "workflow dispatch",
-        "workflow_run",
-    ],
-    "api-gateway": ["api gateway", "gateway pattern", "service mesh", "api proxy", "kong", "envoy", "traefik"],
-    "dependency-injection": [
-        "dependency injection",
-        "IoC",
-        "inversion of control",
-        "DI container",
-        "service provider",
-        "inject",
-    ],
-    cqrs: ["cqrs", "command query", "read model", "write model", "projection", "command handler", "query handler"],
-    "contract-testing": [
-        "contract test",
-        "pact",
-        "consumer driven",
-        "api contract",
-        "schema validation",
-        "provider verification",
-    ],
-    "spring-boot": ["spring boot", "spring framework", "spring jpa", "spring security", "spring actuator", "spring bean"],
-    laravel: ["laravel", "eloquent", "blade template", "artisan", "laravel sanctum", "laravel queue"],
-    "ruby-rails": ["rails", "ruby on rails", "activerecord", "hotwire", "turbo rails", "stimulus", "erb template"],
-    "graphql-codegen": [
-        "graphql codegen",
-        "codegen",
-        "typed graphql",
-        "fragment colocation",
-        "gql.tada",
-        "graphql-codegen",
-    ],
-    "database-replication": [
-        "replication",
-        "read replica",
-        "failover",
-        "streaming replication",
-        "primary-replica",
-        "pgbouncer",
-    ],
-    "load-testing": ["load test", "stress test", "k6", "artillery", "locust", "performance test", "benchmark"],
-    "service-worker": ["service worker", "workbox", "offline first", "precache", "sw.js", "cache strategy"],
-    "css-grid": ["css grid", "grid layout", "grid template", "subgrid", "grid area", "auto-fit", "auto-fill"],
-    "http-client": ["http client", "fetch wrapper", "axios", "ky", "got", "request interceptor"],
-    "state-machines": ["state machine", "xstate", "statechart", "finite state", "state transition", "fsm"],
-    "ai-function-calling": [
-        "function calling",
-        "tool use",
-        "tool_use",
-        "function call",
-        "tool definition",
-        "tool schema",
-        "function schema",
-    ],
-    "prompt-caching": [
-        "prompt caching",
-        "cache prompt",
-        "cached prompt",
-        "context caching",
-        "prefix caching",
-        "cache control",
-    ],
-    "database-migration-patterns": [
-        "migration pattern",
-        "schema evolution",
-        "migration strategy",
-        "migration rollback",
-        "migration versioning",
-        "flyway",
-        "liquibase",
-    ],
-    "api-documentation": [
-        "api docs",
-        "api documentation",
-        "swagger docs",
-        "redoc",
-        "api reference",
-        "openapi docs",
-        "api spec docs",
-    ],
-    "container-orchestration": [
-        "container orchestration",
-        "docker compose",
-        "docker swarm",
-        "ecs",
-        "fargate",
-        "container scheduling",
-        "pod orchestration",
-    ],
-    "secrets-management": [
-        "secrets management",
-        "vault",
-        "secret store",
-        "secret rotation",
-        "secrets manager",
-        "credential management",
-        "sealed secrets",
-    ],
-    "browser-extensions": [
-        "browser extension",
-        "chrome extension",
-        "firefox addon",
-        "manifest v3",
-        "content script",
-        "background script",
-        "popup extension",
-    ],
-    "testing-fixtures": [
-        "test fixture",
-        "test factory",
-        "factory bot",
-        "test data",
-        "seed data",
-        "test setup",
-        "fixture generation",
-    ],
-    "error-monitoring": [
-        "error monitoring",
-        "crash analytics",
-        "error reporting",
-        "error aggregation",
-        "error alerting",
-        "bug tracker",
-        "exception tracking",
-    ],
-    "database-connection-pooling": [
-        "connection pool",
-        "connection pooling",
-        "pgbouncer",
-        "pool size",
-        "connection limit",
-        "pool exhaustion",
-        "db pool",
-    ],
-    "circuit-breaker": [
-        "circuit breaker",
-        "fault tolerance",
-        "resilience",
-        "fallback pattern",
-        "bulkhead",
-        "retry circuit",
-    ],
-    idempotency: ["idempotent", "idempotency", "idempotency key", "deduplication", "exactly once", "at least once"],
-    "cache-invalidation": [
-        "cache invalidation",
-        "cache busting",
-        "stale while revalidate",
-        "cache purge",
-        "write through",
-        "cache aside",
-    ],
-    "micro-frontends": ["micro frontend", "micro-frontend", "module federation", "single-spa", "federated modules"],
-    "serverless-patterns": ["serverless", "lambda", "cloud function", "cold start", "step function", "fan out"],
-    "database-sharding": ["sharding", "shard", "horizontal partition", "shard key", "consistent hashing"],
-    "csrf-protection": ["csrf", "cross-site request forgery", "csrf token", "same-site cookie", "double submit"],
-    "xss-prevention": ["xss", "cross-site scripting", "sanitize html", "dompurify", "script injection"],
-    "blue-green-deploy": [
-        "blue green",
-        "blue-green",
-        "canary deploy",
-        "zero downtime",
-        "rolling deploy",
-        "traffic shifting",
-    ],
-    "full-stack-types": [
-        "full stack types",
-        "end to end types",
-        "shared types",
-        "type safe api",
-        "full-stack typescript",
-    ],
-    "webhook-security": ["webhook security", "webhook signature", "webhook verification", "svix", "webhook replay"],
-    "database-partitioning": [
-        "table partitioning",
-        "partition",
-        "range partition",
-        "partition pruning",
-        "hash partition",
-    ],
-    "api-throttling": ["throttle", "throttling", "backpressure", "token bucket", "sliding window", "429"],
-    "monolith-to-micro": ["monolith to microservices", "strangler fig", "service extraction", "modular monolith"],
-    "code-generation": ["code generation", "codegen", "scaffold", "hygen", "plop", "template engine"],
-    "git-bisect": ["git bisect", "git blame", "git reflog", "find bug commit", "commit archaeology"],
-    "data-migration": ["data migration", "etl", "backfill", "dual write", "data pipeline", "data transfer"],
-    "api-composition": ["bff", "backend for frontend", "api aggregation", "api composition", "response shaping"],
-    "structured-logging": ["structured log", "json log", "correlation id", "request id", "pino", "winston structured"],
-    "graceful-shutdown": ["graceful shutdown", "sigterm", "connection draining", "shutdown hook", "process signal"],
 };
-// Skill category → domain mapping
+// Skill category → domain mapping (only categories present in active registry)
 const CATEGORY_DOMAIN = {
     frontend: "frontend",
     backend: "backend",
     devops: "devops",
     testing: "testing",
     design: "design",
-    "data-viz": "data",
-    "ai-ml": "ai",
-    security: "backend",
-    database: "backend",
-    realtime: "realtime",
-    "state-management": "state",
-    editor: "editor",
-    forms: "frontend",
-    mobile: "mobile",
-    desktop: "desktop",
-    cms: "cms",
-    "build-tools": "monorepo",
-    ai: "ai",
-    internationalization: "frontend",
-    utility: "frontend",
-    runtime: "backend",
-    content: "cms",
-    authentication: "auth",
-    "data-fetching": "data-fetching",
-    "web-performance": "seo",
-    "file-handling": "upload",
-    scheduling: "scheduling",
-    streaming: "streaming",
-    observability: "observability",
-    performance: "seo",
-    search: "search",
-    pdf: "pdf",
-    documentation: "openapi",
-    architecture: "backend",
-    "quality-assurance": "testing",
+    "code-quality": "backend",
+    debugging: "backend",
+    "developer-workflow": "devops",
+    learning: "frontend",
+    meta: "frontend",
+    orchestration: "frontend",
+    planning: "frontend",
+    quality: "testing",
+    reasoning: "frontend",
+    specialist: "frontend",
+    workflow: "frontend",
 };
 const INTENT_PATTERNS = {
     build: [/\b(create|build|add|implement|make|write|scaffold|generate|new)\b/i],
@@ -1048,68 +665,6 @@ function detectProjectStack() {
                     stack.add("testing");
                 if (dep.includes("htmx"))
                     stack.add("frontend");
-                if (dep.includes("uploadthing") || dep.includes("multer"))
-                    stack.add("upload");
-                if (dep.includes("inngest") || dep.includes("bullmq"))
-                    stack.add("scheduling");
-                if (dep.includes("@opentelemetry"))
-                    stack.add("observability");
-                if (dep.includes("algolia") || dep.includes("meilisearch"))
-                    stack.add("search");
-                if (dep.includes("react-email") || dep.includes("mjml"))
-                    stack.add("email");
-                if (dep.includes("web-vitals"))
-                    stack.add("performance");
-                if (dep.includes("better-sqlite3") || dep.includes("libsql"))
-                    stack.add("database");
-                if (dep.includes("@sentry"))
-                    stack.add("error-tracking");
-                if (dep.includes("@grpc") || dep.includes("protobufjs"))
-                    stack.add("grpc");
-                if (dep.includes("plausible") || dep.includes("posthog"))
-                    stack.add("analytics");
-                if (dep.includes("comlink"))
-                    stack.add("web-workers");
-                if (dep.includes("swagger") || dep.includes("openapi"))
-                    stack.add("openapi");
-                if (dep.includes("@biomejs"))
-                    stack.add("tooling");
-                if (dep.includes("flask") || dep.includes("werkzeug"))
-                    stack.add("flask");
-                if (dep.includes("@nestjs"))
-                    stack.add("nestjs");
-                if (dep.includes("vite"))
-                    stack.add("vite");
-                if (dep.includes("eslint"))
-                    stack.add("eslint");
-                if (dep.includes("prettier"))
-                    stack.add("prettier");
-                if (dep.includes("@pact-foundation"))
-                    stack.add("contract-testing");
-                if (dep.includes("xstate"))
-                    stack.add("state-machines");
-                if (dep.includes("@graphql-codegen"))
-                    stack.add("graphql-codegen");
-                if (dep.includes("axios") || dep.includes("ky") || dep.includes("got"))
-                    stack.add("http-client");
-                if (dep.includes("workbox"))
-                    stack.add("service-worker");
-                if (dep.includes("k6") || dep.includes("artillery"))
-                    stack.add("load-testing");
-                if (dep.includes("@anthropic-ai") || dep.includes("openai"))
-                    stack.add("ai-function-calling");
-                if (dep.includes("flyway") || dep.includes("liquibase"))
-                    stack.add("database-migration-patterns");
-                if (dep.includes("redoc") || dep.includes("swagger-ui"))
-                    stack.add("api-documentation");
-                if (dep.includes("webextension-polyfill") || dep.includes("chrome-types"))
-                    stack.add("browser-extensions");
-                if (dep.includes("fishery") || dep.includes("factory"))
-                    stack.add("testing-fixtures");
-                if (dep.includes("@sentry") || dep.includes("bugsnag"))
-                    stack.add("error-monitoring");
-                if (dep.includes("pg-pool") || dep.includes("pgbouncer") || dep.includes("generic-pool"))
-                    stack.add("database-connection-pooling");
             }
         }
     }
@@ -1125,41 +680,8 @@ function detectProjectStack() {
         ["tsconfig.json", "frontend"],
         ["requirements.txt", "backend"],
         ["Cargo.toml", "backend"],
-        ["turbo.json", "monorepo"],
-        ["nx.json", "monorepo"],
-        ["pnpm-workspace.yaml", "monorepo"],
-        ["app.json", "mobile"],
-        ["expo-env.d.ts", "mobile"],
-        ["electron-builder.yml", "desktop"],
-        ["robots.txt", "seo"],
-        ["sitemap.xml", "seo"],
-        ["inngest.config.ts", "scheduling"],
+        ["turbo.json", "devops"],
         ["vercel.json", "frontend"],
-        ["biome.json", "tooling"],
-        ["biome.jsonc", "tooling"],
-        [".sentryclirc", "error-tracking"],
-        ["sentry.client.config.ts", "error-tracking"],
-        ["openapi.yaml", "openapi"],
-        ["swagger.json", "openapi"],
-        ["vite.config.ts", "vite"],
-        ["vite.config.js", "vite"],
-        [".eslintrc.json", "eslint"],
-        ["eslint.config.js", "eslint"],
-        ["eslint.config.mjs", "eslint"],
-        [".prettierrc", "prettier"],
-        [".prettierrc.json", "prettier"],
-        [".github/workflows", "github-actions"],
-        ["requirements.txt", "flask"],
-        ["nest-cli.json", "nestjs"],
-        ["Gemfile", "ruby-rails"],
-        ["composer.json", "laravel"],
-        ["pom.xml", "spring-boot"],
-        ["build.gradle", "spring-boot"],
-        ["manifest.json", "browser-extensions"],
-        ["docker-compose.yml", "container-orchestration"],
-        ["docker-compose.yaml", "container-orchestration"],
-        [".sentry.properties", "error-monitoring"],
-        ["sentry.server.config.ts", "error-monitoring"],
     ];
     for (const [file, domain] of configSignals) {
         if (existsSync(resolve(process.cwd(), file)))
@@ -1207,8 +729,14 @@ function main() {
         process.stdout.write(JSON.stringify({ skills: [], context: "" }));
         return;
     }
-    // Load registry from session cache (avoids re-parsing 84KB JSON)
-    const registryPath = resolve(__dirname, "../skills/_registry.json");
+    // Load registry from session cache (avoids re-parsing 26KB JSON)
+    // When compiled to dist/, __dirname is hooks/dist/ — go up two levels
+    // When run via tsx, __dirname is hooks/ — go up one level
+    // Use existence check to pick the right path
+    let registryPath = resolve(__dirname, "../skills/_registry.json");
+    if (!existsSync(registryPath)) {
+        registryPath = resolve(__dirname, "../../skills/_registry.json");
+    }
     const skills = loadRegistryWithCache(registryPath);
     if (!skills) {
         process.stdout.write(JSON.stringify({ skills: [], context: "", error: "Registry not found" }));
@@ -1477,107 +1005,30 @@ const TOOLS = new Set([
     "yarn",
     "deno",
     "node",
-    "vim",
-    "neovim",
     "vscode",
     "cursor",
-    "zed",
     "react",
-    "vue",
-    "svelte",
-    "angular",
     "next",
     "nextjs",
-    "nuxt",
-    "remix",
-    "astro",
     "tailwind",
     "typescript",
     "python",
     "rust",
     "go",
     "postgres",
-    "mysql",
-    "sqlite",
-    "mongodb",
-    "redis",
     "neon",
     "docker",
     "vercel",
-    "netlify",
-    "cloudflare",
-    "aws",
     "figma",
     "vitest",
     "jest",
     "playwright",
-    "prisma",
     "drizzle",
-    "expo",
-    "electron",
     "cypress",
-    "storybook",
-    "turborepo",
-    "nx",
-    "pnpm",
-    "sanity",
-    "payload",
     "openai",
     "supabase",
     "stripe",
     "hono",
-    "convex",
-    "clerk",
-    "upstash",
-    "htmx",
-    "inngest",
-    "bullmq",
-    "uploadthing",
-    "testing-library",
-    "opentelemetry",
-    "algolia",
-    "meilisearch",
-    "elasticsearch",
-    "react-email",
-    "mjml",
-    "pdfkit",
-    "wasm",
-    "web-vitals",
-    "sentry",
-    "plausible",
-    "posthog",
-    "grpc",
-    "protobuf",
-    "comlink",
-    "swagger",
-    "biome",
-    "flask",
-    "nestjs",
-    "vite",
-    "eslint",
-    "prettier",
-    "pact",
-    "kong",
-    "envoy",
-    "traefik",
-    "spring",
-    "laravel",
-    "rails",
-    "xstate",
-    "k6",
-    "artillery",
-    "locust",
-    "workbox",
-    "axios",
-    "ky",
-    "vault",
-    "hashicorp",
-    "sentry",
-    "datadog",
-    "flyway",
-    "liquibase",
-    "redoc",
-    "pgbouncer",
 ]);
 const STYLES = new Set([
     "glassmorphism",
