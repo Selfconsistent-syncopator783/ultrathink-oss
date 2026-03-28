@@ -67,10 +67,14 @@ npm install
 echo "  Memory dependencies — OK"
 cd ..
 
-cd code-intel
-npm install
-echo "  Code-intel dependencies — OK"
-cd ..
+if [[ -d code-intel ]]; then
+  cd code-intel
+  npm install
+  echo "  Code-intel dependencies — OK"
+  cd ..
+else
+  echo "  Code-intel — skipped (not present)"
+fi
 
 # Step 4: Make hooks executable
 echo ""
