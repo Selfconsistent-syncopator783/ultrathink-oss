@@ -14,21 +14,6 @@
         "memory-save",
         "memory-recall"
       ]
-    },
-    "ultrathink-code-intel": {
-      "command": "node",
-      "args": ["${ULTRATHINK_ROOT}/code-intel/dist/mcp-server.js"],
-      "env": {
-        "DATABASE_URL": "${DATABASE_URL}",
-        "ULTRATHINK_ROOT": "${ULTRATHINK_ROOT}"
-      },
-      "tools": [
-        "code-symbols",
-        "code-deps",
-        "code-dependents",
-        "code-impact",
-        "code-modules"
-      ]
     }
   }
 }

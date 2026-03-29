@@ -99,14 +99,14 @@ Then run `claude` in any project. [Full guide →](docs/install-claude-code.md)
 
 ### Skill Mesh
 
-43 active skills across 4 layers, auto-triggered by intent detection on every prompt (<30ms).
+44 active skills across 4 layers, auto-triggered by intent detection on every prompt (<30ms).
 
 | Layer | Examples | Purpose |
 |-------|----------|---------|
-| Orchestrator | `cook`, `ship`, `gsd` | End-to-end workflows |
+| Orchestrator | `cook`, `ship`, `gsd-verify` | End-to-end workflows |
 | Hub | `debug`, `test`, `react` | Multi-step coordinators |
 | Utility | `fix`, `refactor`, `verify` | Focused tools |
-| Domain | `nextjs`, `tailwind`, `prisma` | Tech specialists |
+| Domain | `nextjs`, `tailwind`, `react` | Tech specialists |
 
 340+ more in `_archive/` — restore any with `mv`. [Skills catalog →](docs/skills-catalog.md)
 
@@ -148,7 +148,7 @@ Next.js 15 on port 3333 — memory browser, skill graph, hook events, usage trac
 │  └────────────────────────────────────────────┘  │
 │                                                  │
 │  ┌────────────────────────────────────────────┐  │
-│  │     Skill Mesh (4 layers, 43 active)       │  │
+│  │     Skill Mesh (4 layers, 44 active)       │  │
 │  │  Orchestrators → Hubs → Utils → Domain     │  │
 │  │  Auto-trigger + graph traversal (linksTo)  │  │
 │  └────────────────────────────────────────────┘  │
@@ -167,8 +167,8 @@ Next.js 15 on port 3333 — memory browser, skill graph, hook events, usage trac
 ```
 ultrathink/
 ├── .claude/
-│   ├── hooks/          19 lifecycle hooks
-│   ├── skills/         43 active + _archive/ (340+)
+│   ├── hooks/          20 lifecycle hooks
+│   ├── skills/         44 active + _archive/ (340+)
 │   ├── agents/         10 agent definitions
 │   ├── references/     Quality, privacy, teaching rules
 │   └── commands/       Slash commands
@@ -227,11 +227,48 @@ cd ultrathink-oss && ./scripts/setup.sh && npm run test
 
 ---
 
+## FAQ
+
+### How is UltraThink different from Superpowers or Everything Claude Code?
+
+UltraThink is an **integration project**, not an innovation project. Most concepts come from the community:
+
+| Concept | Origin |
+|---------|--------|
+| TDD, brainstorming, subagent workflow | [Superpowers](https://github.com/obra/superpowers) (121K+ stars) |
+| Multi-agent + hook architecture | [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) (115K+ stars) |
+| SKILL.md format | [Anthropic Skills](https://github.com/anthropics/skills) (official) |
+| Multi-layer security hooks | [Claude Forge](https://github.com/sangrokjung/claude-forge) |
+| "Second brain" memory pattern | [coleam00/second-brain-skills](https://github.com/coleam00/second-brain-skills) |
+| Hook lifecycle patterns | [claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) |
+
+**What UltraThink adds on top:**
+
+- **Database-backed memory** — Real Postgres (pgvector + pg_trgm) instead of flat MEMORY.md files. Memories persist across sessions with importance ranking, fuzzy search, and synonym expansion.
+- **Observability dashboard** — A full Next.js 15 UI (skill graph, memory browser, hook events, usage tracking) that no other repo provides at this level.
+- **Auto-trigger engine** — Every prompt is scored against the skill registry in <30ms. Top 5 skills are injected automatically via intent detection + graph traversal. Neither Superpowers nor ECC do this.
+- **Cross-editor configs** — One command generates rules for Cursor, Windsurf, Antigravity, Copilot, and OpenClaw.
+- **Adaptive learning (Tekiō)** — Failures become immunity rules, successes get reinforced. Infinite wheel spins.
+
+**Where others are stronger:**
+
+- **Superpowers** has a tighter methodology (spec → plan → TDD → review) and a massive community.
+- **Everything Claude Code** has more agents (28), more skills (126), 98% test coverage, and 115K+ stars.
+- Both are battle-tested by thousands of developers. UltraThink is a personal workflow open-sourced.
+
+**Bottom line:** If you want a proven, community-backed framework, use Superpowers or ECC. If you want database-backed memory, a visual dashboard, and auto-triggered skills wired together, UltraThink fills that gap.
+
+---
+
 ## Acknowledgments
 
 | Project | Author | Integration |
 |---------|--------|-------------|
 | [Superpowers](https://github.com/obra/superpowers) | obra | TDD, debugging, brainstorming, plan execution |
+| [Everything Claude Code](https://github.com/affaan-m/everything-claude-code) | affaan-m | Multi-agent architecture, hook patterns |
+| [Claude Forge](https://github.com/sangrokjung/claude-forge) | sangrokjung | Multi-layer security hooks |
+| [Second Brain Skills](https://github.com/coleam00/second-brain-skills) | coleam00 | "Second brain" framing for Claude Code |
+| [claude-code-hooks-mastery](https://github.com/disler/claude-code-hooks-mastery) | disler | Hook lifecycle patterns |
 | [VFS](https://github.com/TrNgTien/vfs) | TrNgTien | AST-based token compression (60-98% savings) |
 | [Get Shit Done](https://github.com/gsd-build/get-shit-done) | gsd-build | Spec-driven planning, wave execution |
 | [Impeccable](https://github.com/pbakaus/impeccable) | pbakaus | Frontend design skill suite |

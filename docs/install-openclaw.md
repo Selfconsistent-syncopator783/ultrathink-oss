@@ -1,12 +1,11 @@
 # Install — OpenClaw
 
-Bridge UltraThink's skill mesh, memory, and code intelligence into OpenClaw via MCP.
+Bridge UltraThink's skill mesh and memory into OpenClaw via MCP.
 
 ## What Works
 
 - UltraThink skills as OpenClaw-native SKILL.md files
 - Persistent memory via MCP server (`memory-search`, `memory-save`, `memory-recall`)
-- Code intelligence via MCP server (`code-symbols`, `code-deps`, `code-impact`)
 - Multi-pass code review skill
 - Discord, Telegram, Slack channel access
 
@@ -14,7 +13,7 @@ Bridge UltraThink's skill mesh, memory, and code intelligence into OpenClaw via 
 
 - OpenClaw 2026.1+ with MCP support
 - Node.js 20+
-- Neon Postgres (for memory + code-intel features)
+- Neon Postgres (for memory features)
 
 ## Setup
 
@@ -56,13 +55,6 @@ Add to `~/.openclaw/openclaw.json` under `mcpServers`:
       "env": {
         "DATABASE_URL": "postgresql://user:pass@host.neon.tech/neondb?sslmode=require"
       }
-    },
-    "ultrathink-code-intel": {
-      "command": "node",
-      "args": ["/path/to/ultrathink-oss/code-intel/dist/mcp-server.js"],
-      "env": {
-        "DATABASE_URL": "postgresql://user:pass@host.neon.tech/neondb?sslmode=require"
-      }
     }
   }
 }
@@ -74,7 +66,6 @@ Add to `~/.openclaw/openclaw.json` under `mcpServers`:
 |-------|-------------|
 | `ultrathink` | Core orchestrator — routes prompts to skill mesh |
 | `ultrathink_memory` | Search, save, recall memories via MCP |
-| `ultrathink_code_intel` | Symbol search, dependency graphs, impact analysis |
 | `ultrathink_review` | Multi-pass code review (correctness, security, perf) |
 
 ## CLAWD.md
