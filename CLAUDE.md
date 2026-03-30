@@ -13,7 +13,7 @@ and a layered architecture for complex engineering tasks.
 - **Database**: Neon Postgres + pgvector + pg_trgm
 - **Skills**: 44 active (340+ archived in `_archive/`)
 - **Memory**: Postgres-backed fuzzy search (tsvector + trigram + ILIKE)
-- **Hooks**: Pre/post tool hooks + auto-trigger | **Tools**: VFS (AST signatures) via MCP
+- **Hooks**: Pre/post tool hooks + auto-trigger + PreCompact state preservation + subagent verification | **Tools**: VFS (AST signatures) via MCP
 
 ## Skill Mesh
 

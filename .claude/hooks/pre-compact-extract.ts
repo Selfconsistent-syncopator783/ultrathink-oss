@@ -32,6 +32,8 @@ interface ExtractedState {
   last_task: string | null;
   files_modified: string[];
   last_summary: string | null;
+  decisions: string[];
+  pending_work: string[];
 }
 
 function extractTextFromContent(content: unknown): string {
@@ -66,6 +68,8 @@ function main() {
       last_task: null,
       files_modified: [],
       last_summary: null,
+      decisions: [],
+      pending_work: [],
     };
     process.stdout.write(JSON.stringify(fallback));
     return;
@@ -135,12 +139,35 @@ function main() {
     }
   }
 
+  // Extract decisions and pending work from assistant messages
+  // Look for patterns: "I'll...", "decided to...", "going with...", "TODO", "still need to", "next:"
+  const decisions: string[] = [];
+  const pendingWork: string[] = [];
+  const decisionPatterns = /(?:decided to|going with|I'll use|chose|picking|selected|approach:)\s*(.{10,120})/gi;
+  const pendingPatterns = /(?:still need to|TODO|pending|next:|remaining:|haven't yet|need to)\s*(.{10,120})/gi;
+
+  for (const entry of entries) {
+    const role = entry.role || entry.message?.role;
+    const content = entry.content || entry.message?.content;
+    if (role === "assistant" && content) {
+      const text = extractTextFromContent(content);
+      for (const match of text.matchAll(decisionPatterns)) {
+        if (match[1]) decisions.push(match[1].trim().replace(/\n.*/s, ""));
+      }
+      for (const match of text.matchAll(pendingPatterns)) {
+        if (match[1]) pendingWork.push(match[1].trim().replace(/\n.*/s, ""));
+      }
+    }
+  }
+
   const state: ExtractedState = {
     session_id: sessionId,
     extracted_at: new Date().toISOString(),
     last_task: lastTask,
     files_modified: [...filesModified],
     last_summary: lastSummary,
+    decisions: [...new Set(decisions)].slice(0, 10),
+    pending_work: [...new Set(pendingWork)].slice(0, 10),
   };
 
   process.stdout.write(JSON.stringify(state));
