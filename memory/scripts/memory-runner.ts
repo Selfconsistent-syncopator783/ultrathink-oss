@@ -13,6 +13,8 @@
  *   relate            — Create memory relation
  *   graph             — Fetch memory graph for scope
  *   dedup             — Check if content is duplicate
+ *   identity          — Get user identity graph for a scope
+ *   identity-set      — Set a user preference in the identity graph
  *   conflicts         — Detect contradictory preferences (Prefers X vs Avoids X)
  *   resolve-conflict  — Resolve a conflict by archiving one preference
  */
@@ -32,6 +34,16 @@ import {
 } from "../src/memory.js";
 import { logHookEvent } from "../src/hooks.js";
 import {
+  ensureIdentityNode,
+  linkToIdentity,
+  setPreference,
+  getIdentity,
+  syncInferredIdentity,
+  formatIdentityContext,
+  detectConflicts,
+  resolveConflict,
+} from "./identity.js";
+import {
   logSkillUsage,
   logToolUse,
   computeDailyStats,
@@ -40,6 +52,15 @@ import {
   listDecisions,
 } from "../src/analytics.js";
 import { enrichMemory } from "../src/enrich.js";
+import {
+  wheelTurn,
+  wheelLearn,
+  getActiveAdaptations,
+  formatAdaptations,
+  adaptFromCorrection,
+  getWheelStats,
+  type FailureEvent,
+} from "../src/adaptation.js";
 import { createJournal } from "../src/plans.js";
 
 // Load .env from project root
@@ -172,9 +193,21 @@ async function sessionStart() {
     session_id: sessionId,
   });
 
-  // Format with sections (max 5KB)
+  // Sync inferred identity from behavioral patterns (file edits, commands)
+  // This mines auto-memory entries and creates tool-preference nodes
+  try {
+    await syncInferredIdentity(scope);
+  } catch (err) {
+    console.error("Identity sync warning:", (err as Error).message);
+  }
+
+  // Recall identity graph (now includes both explicit prefs AND inferred behavior)
+  const identityData = await getIdentity(scope);
+  const identityContext = formatIdentityContext(identityData);
+
+  // Format with sections (max 2KB)
   let context = "";
-  if (allMemories.length > 0) {
+  if (allMemories.length > 0 || identityContext) {
     const sections: string[] = [];
 
     if (preferences.length > 0) {
@@ -184,7 +217,9 @@ async function sessionStart() {
     if (uniqueDecisions.length > 0) {
       sections.push("**Decisions:**\n" + uniqueDecisions.map((m) => `- ${m.content}`).join("\n"));
     }
-    const other = allMemories.filter((m) => m.category !== "preference" && m.category !== "decision");
+    const other = allMemories.filter(
+      (m) => m.category !== "preference" && m.category !== "decision" && m.category !== "identity"
+    );
     if (other.length > 0) {
       sections.push(
         "**Context:**\n" +
@@ -197,8 +232,34 @@ async function sessionStart() {
       );
     }
 
+    if (identityContext) {
+      sections.unshift(identityContext);
+    }
+
+    // ☸ Tekiō — inject adaptations (hard rules from experience)
+    let wheelSection = "";
+    try {
+      const adaptations = await getActiveAdaptations(sql, scope);
+      wheelSection = formatAdaptations(adaptations);
+    } catch {
+      // Adaptation table may not exist yet — silently skip
+    }
+
+    // Budget: 5120 chars total, split 60/40 between brain and wheel
+    // Both can use unused space from the other
+    const TOTAL_BUDGET = 5120;
+    const BRAIN_TARGET = Math.round(TOTAL_BUDGET * 0.6); // 3072
+    const WHEEL_TARGET = TOTAL_BUDGET - BRAIN_TARGET; // 2048
     const brainContent = `## Brain — ${projectName}\n\n` + sections.join("\n\n") + "\n";
-    context = brainContent.length > 5120 ? brainContent.slice(0, 5120) : brainContent;
+    const brainOverflow = Math.max(0, brainContent.length - BRAIN_TARGET);
+    const wheelOverflow = Math.max(0, wheelSection.length - WHEEL_TARGET);
+    // Each section can borrow unused space from the other
+    const maxWheel = WHEEL_TARGET + Math.max(0, BRAIN_TARGET - brainContent.length);
+    const maxBrain = BRAIN_TARGET + Math.max(0, WHEEL_TARGET - wheelSection.length);
+    const trimmedBrain = brainContent.length > maxBrain ? brainContent.slice(0, maxBrain) : brainContent;
+    const trimmedWheel = wheelSection.length > maxWheel ? wheelSection.slice(0, maxWheel) : wheelSection;
+
+    context = trimmedBrain + (trimmedWheel ? "\n" + trimmedWheel + "\n" : "");
   }
 
   process.stdout.write(JSON.stringify({ additionalContext: context || undefined }));
@@ -211,15 +272,28 @@ async function recallOnly() {
   // Reuse shared recall logic (no session creation, no decisions/neighbors)
   const { allMemories } = await buildMemoryContext(scope);
 
+  // ☸ Tekiō — inject adaptations (same as sessionStart)
+  let wheelSection = "";
+  try {
+    const sql = getClient();
+    const adaptations = await getActiveAdaptations(sql, scope);
+    wheelSection = formatAdaptations(adaptations);
+  } catch {
+    // Adaptation table may not exist yet — silently skip
+  }
+
   let context = "";
-  if (allMemories.length > 0) {
-    const lines = allMemories.map((m) => {
+  if (allMemories.length > 0 || wheelSection) {
+    const filtered = allMemories.filter((m) => m.category !== "identity");
+    const lines = filtered.map((m) => {
       const tags = m.tags?.filter(Boolean).join(", ") || "";
       const tagStr = tags ? ` [${tags}]` : "";
       return `- [${m.category}] ${m.content}${tagStr} (importance: ${m.importance})`;
     });
-    context = "## Recalled Memories\n\n" + lines.join("\n") + "\n";
-    if (context.length > 5120) context = context.slice(0, 5120);
+    const memoryContent = lines.length > 0 ? "## Recalled Memories\n\n" + lines.join("\n") + "\n" : "";
+    const maxMemory = 5120 - wheelSection.length;
+    const trimmedMemory = memoryContent.length > maxMemory ? memoryContent.slice(0, maxMemory) : memoryContent;
+    context = trimmedMemory + (wheelSection ? "\n" + wheelSection + "\n" : "");
   }
 
   process.stdout.write(JSON.stringify({ additionalContext: context || undefined }));
@@ -352,6 +426,22 @@ async function sessionEnd() {
       // Non-critical — don't fail session end
     }
 
+    // Deactivate stale adaptations (90+ days old, never applied, not user corrections)
+    try {
+      await sql`
+        UPDATE adaptations SET is_active = false
+        WHERE is_active = true
+          AND last_applied_at IS NULL AND times_applied = 0
+          AND created_at < NOW() - INTERVAL '90 days'
+          AND (source_failure IS NULL OR (
+            source_failure NOT LIKE 'User correction%'
+            AND source_failure NOT LIKE 'Success pattern%'
+          ))
+      `;
+    } catch {
+      // Non-critical
+    }
+
     // Only clean up session file if DB update succeeded
     if (dbUpdateSucceeded) {
       try {
@@ -456,8 +546,13 @@ async function flush() {
     }
   }
 
-  // Simple in-memory similarity check (word overlap ratio)
+  // Two-tier similarity check: exact match first, then word overlap
+  const existingSet = new Set(existingContents.map((c) => c.toLowerCase().trim()));
+
   function isContentSimilar(a: string, b: string, threshold = 0.6): boolean {
+    // Tier 1: exact match (catches "Exit code 1" duplicates)
+    if (a.toLowerCase().trim() === b.toLowerCase().trim()) return true;
+    // Tier 2: word overlap for near-duplicates
     const wordsA = new Set(a.toLowerCase().split(/\s+/));
     const wordsB = new Set(b.toLowerCase().split(/\s+/));
     if (wordsA.size === 0 || wordsB.size === 0) return false;
@@ -471,8 +566,11 @@ async function flush() {
 
   for (const { filePath, data } of pending) {
     try {
-      // In-memory dedup against batch-fetched existing memories
-      const isDup = existingContents.some((existing) => isContentSimilar(data.content as string, existing));
+      // Fast exact-match check (O(1) via Set), then word-overlap for near-dupes
+      const contentLower = (data.content as string).toLowerCase().trim();
+      const isDup =
+        existingSet.has(contentLower) ||
+        existingContents.some((existing) => isContentSimilar(data.content as string, existing));
 
       if (!isDup) {
         const input: CreateMemoryInput = {
@@ -490,6 +588,12 @@ async function flush() {
 
         // Track newly created content for intra-batch dedup
         existingContents.push(input.content);
+        existingSet.add(input.content.toLowerCase().trim());
+
+        // Auto-link preference-category memories to identity graph
+        if (prefCategories.includes(input.category) && input.scope) {
+          await linkToIdentity(created.id, input.category, input.scope);
+        }
 
         saved++;
       }
@@ -573,6 +677,42 @@ async function dedup() {
   );
 }
 
+async function identityGet() {
+  const scope = process.argv[3] || undefined;
+  const identity = await getIdentity(scope);
+  const formatted = formatIdentityContext(identity);
+  process.stdout.write(JSON.stringify({ identity, formatted }));
+}
+
+async function identitySet() {
+  const scope = process.argv[3];
+  const key = process.argv[4];
+  const value = process.argv[5];
+  const category = (process.argv[6] || "preference") as
+    | "preference"
+    | "style-preference"
+    | "tool-preference"
+    | "project-context"
+    | "workflow-pattern"
+    | "identity";
+  const strength = process.argv[7] ? parseFloat(process.argv[7]) : 0.8;
+
+  if (!scope || !key || !value) {
+    console.error("Usage: memory-runner.ts identity-set <scope> <key> <value> [category] [strength]");
+    process.exit(1);
+  }
+
+  // Identity category updates the root node name directly
+  if (category === "identity") {
+    await ensureIdentityNode(scope, value);
+    process.stdout.write(JSON.stringify({ status: "set", key, category: "identity" }));
+    return;
+  }
+
+  await setPreference(scope, key, value, category, strength);
+  process.stdout.write(JSON.stringify({ status: "set", key, category }));
+}
+
 function getSessionId(): string | null {
   try {
     return readFileSync(getSessionFile(), "utf-8").trim();
@@ -591,6 +731,9 @@ async function preferences() {
     const rows = await sql`
       SELECT DISTINCT content FROM memories
       WHERE (category = 'preference' OR tags @> ARRAY['#preference'])
+      UNION
+      SELECT DISTINCT label FROM identity_nodes
+      WHERE type = 'preference' OR category = 'preference'
     `;
 
     const keywords = new Set<string>();
@@ -635,6 +778,40 @@ async function main() {
     case "dedup":
       await dedup();
       break;
+    case "identity":
+      await identityGet();
+      break;
+    case "identity-set":
+      await identitySet();
+      break;
+    case "conflicts": {
+      const scope = args[0] || process.cwd().split("/").slice(-2).join("/");
+      const conflicts = await detectConflicts(scope);
+      if (conflicts.length === 0) {
+        console.log("No preference conflicts found.");
+      } else {
+        console.log(`Found ${conflicts.length} conflict(s):\n`);
+        for (const c of conflicts) {
+          console.log(`  Subject: "${c.subject}"`);
+          console.log(`    + ${c.prefer.content} (id: ${c.prefer.id})`);
+          console.log(`    - ${c.avoid.content} (id: ${c.avoid.id})`);
+          console.log();
+        }
+      }
+      break;
+    }
+    case "resolve-conflict": {
+      const keepId = args[0];
+      const archiveId = args[1];
+      if (!keepId || !archiveId) {
+        console.error("Usage: memory-runner.ts resolve-conflict <keep_id> <archive_id>");
+        process.exit(1);
+      }
+      await resolveConflict(keepId, archiveId);
+      console.log(`Resolved: kept ${keepId}, archived ${archiveId}`);
+      break;
+    }
+
     // ── Analytics ──────────────────────────────────────────────────────────
 
     case "log-skill": {
@@ -769,6 +946,116 @@ async function main() {
       break;
     }
 
+    // ── ☸ Tekiō — Cycle of Nova — Adaptation Commands ─────────────
+
+    case "wheel-turn": {
+      // Process a failure and create/apply an adaptation
+      // Usage: memory-runner.ts wheel-turn '<error>' '<context>' [tool] [scope]
+      const errMsg = args[0];
+      const errCtx = args[1] || "";
+      const tool = args[2] || "unknown";
+      const failScope = args[3] || undefined;
+      if (!errMsg) {
+        console.error("Usage: memory-runner.ts wheel-turn '<error>' '<context>' [tool] [scope]");
+        process.exit(1);
+      }
+      const failure: FailureEvent = {
+        error: errMsg,
+        context: errCtx,
+        tool,
+        scope: failScope,
+      };
+      const sqlW = getClient();
+      const result = await wheelTurn(sqlW, failure);
+      if (!result) {
+        // Filtered out — not worth learning
+        console.error("☸ SKIP — noise filtered, not worth learning");
+        break;
+      }
+      // Output notification for the hook to display
+      const icon = result.isNew ? "☸ NOVA — wheel turns" : "☸ ADAPTED";
+      const cat = result.adaptation.category.toUpperCase();
+      console.error(`${icon} [${cat}] → ${result.adaptation.adaptation_rule.slice(0, 120)}`);
+      console.error(`  Wheel position: ${result.wheelSpin} adaptations learned`);
+      process.stdout.write(
+        JSON.stringify({
+          isNew: result.isNew,
+          wheelSpin: result.wheelSpin,
+          adaptation: result.adaptation,
+        })
+      );
+      break;
+    }
+
+    case "wheel-stats": {
+      const sqlS = getClient();
+      const stats = await getWheelStats(sqlS);
+      console.log(`☸ Tekiō — Cycle of Nova — ${stats.total} adaptations`);
+      console.log(`  Defensive: ${stats.defensive} (immunity)`);
+      console.log(`  Auxiliary:  ${stats.auxiliary} (perception)`);
+      console.log(`  Offensive:  ${stats.offensive} (approach)`);
+      console.log(`  Learning:   ${stats.learning} (absorbed)`);
+      console.log(`  Applied: ${stats.totalApplied}x | Prevented: ${stats.totalPrevented}x`);
+      break;
+    }
+
+    case "wheel-list": {
+      const sqlL = getClient();
+      const adaptations = await getActiveAdaptations(sqlL);
+      for (const a of adaptations) {
+        const applied = a.times_applied > 0 ? ` [${a.times_applied}x]` : "";
+        console.log(`[${a.category.padEnd(10)}] ${a.trigger_pattern.slice(0, 60)}${applied}`);
+        console.log(`           → ${a.adaptation_rule.slice(0, 100)}`);
+      }
+      break;
+    }
+
+    case "wheel-learn": {
+      // Learn from a successful new pattern
+      // Usage: memory-runner.ts wheel-learn '<pattern>' '<insight>' [scope]
+      const learnPattern = args[0];
+      const learnInsight = args[1];
+      const learnScope = args[2] || undefined;
+      if (!learnPattern || !learnInsight) {
+        console.error("Usage: memory-runner.ts wheel-learn '<pattern>' '<insight>' [scope]");
+        process.exit(1);
+      }
+      const sqlLearn = getClient();
+      const learnResult = await wheelLearn(sqlLearn, {
+        pattern: learnPattern,
+        insight: learnInsight,
+        scope: learnScope,
+      });
+      if (learnResult.isNew) {
+        console.error(`☸ NOVA — wheel turns [LEARNING] — absorbed new pattern`);
+        console.error(`  Pattern: ${learnPattern.slice(0, 80)}`);
+        console.error(`  Insight: ${learnInsight.slice(0, 80)}`);
+      } else {
+        console.error(`☸ KNOWN — pattern already absorbed, reinforced`);
+      }
+      process.stdout.write(JSON.stringify(learnResult));
+      break;
+    }
+
+    case "wheel-correct": {
+      // Create adaptation from user correction
+      // Usage: memory-runner.ts wheel-correct '<wrong_approach>' '<correct_approach>' [scope]
+      const wrong = args[0];
+      const correct = args[1];
+      const corrScope = args[2] || undefined;
+      if (!wrong || !correct) {
+        console.error("Usage: memory-runner.ts wheel-correct '<wrong>' '<correct>' [scope]");
+        process.exit(1);
+      }
+      const sqlC = getClient();
+      const adaptation = await adaptFromCorrection(sqlC, wrong, correct, corrScope);
+      console.error(`☸ NOVA — wheel turns [DEFENSIVE] — learned from correction`);
+      console.error(`  Wrong: ${wrong.slice(0, 80)}`);
+      console.error(`  Right: ${correct.slice(0, 80)}`);
+      process.stdout.write(JSON.stringify(adaptation));
+      break;
+    }
+
     case "context-recall": {
       // Smart recall: search memories relevant to a specific context/task
       // Used by session-start to find memories based on what the user is working on
@@ -803,7 +1090,7 @@ async function main() {
     default:
       console.error(`Unknown command: ${command}`);
       console.error(
-        "Usage: memory-runner.ts <session-start|session-end|recall-only|save|flush|search|relate|graph|dedup|log-skill|log-tool|daily-stats|log-security|decision|decisions|journal|cleanup-junk|enrich-all|context-recall|preferences>"
+        "Usage: memory-runner.ts <session-start|session-end|recall-only|save|flush|search|relate|graph|dedup|identity|identity-set|conflicts|resolve-conflict|log-skill|log-tool|daily-stats|log-security|decision|decisions|journal|enrich-all|context-recall|preferences>"
       );
       process.exit(1);
   }

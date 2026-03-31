@@ -187,11 +187,16 @@ case "$TOOL_NAME" in
     BASH_CATEGORY="solution"
     BASH_IMPORTANCE=4
 
-    # Always save errors (non-zero exit)
+    # Save errors ONLY if we have meaningful error output (not just "Exit code 1")
     if [[ "$EXIT_STATUS" != "0" && "$EXIT_STATUS" != "null" ]]; then
-      SHOULD_SAVE=true
-      BASH_IMPORTANCE=6
-      BASH_CATEGORY="error"
+      # Get error output length — skip saving if output is too short to be useful
+      ERROR_LEN=$(echo "$TOOL_OUTPUT" | wc -c | tr -d ' ')
+      if [[ "$ERROR_LEN" -gt 30 ]]; then
+        SHOULD_SAVE=true
+        BASH_IMPORTANCE=6
+        BASH_CATEGORY="solution"
+      fi
+      # Skip bare "Exit code N" with no useful error context
     fi
 
     # Save high-impact commands
