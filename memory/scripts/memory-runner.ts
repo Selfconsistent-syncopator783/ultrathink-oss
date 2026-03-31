@@ -245,11 +245,12 @@ async function sessionStart() {
       // Adaptation table may not exist yet — silently skip
     }
 
-    // Budget: 5120 chars total, split 60/40 between brain and wheel
-    // Both can use unused space from the other
-    const TOTAL_BUDGET = 5120;
-    const BRAIN_TARGET = Math.round(TOTAL_BUDGET * 0.6); // 3072
-    const WHEEL_TARGET = TOTAL_BUDGET - BRAIN_TARGET; // 2048
+    // Dynamic budget: scale up to 8192 if content warrants it
+    // Base 5120, expand if brain+wheel would both benefit from more space
+    const brainRaw = `## Brain — ${projectName}\n\n` + sections.join("\n\n") + "\n";
+    const TOTAL_BUDGET = Math.min(8192, Math.max(5120, brainRaw.length + wheelSection.length + 512));
+    const BRAIN_TARGET = Math.round(TOTAL_BUDGET * 0.6);
+    const WHEEL_TARGET = TOTAL_BUDGET - BRAIN_TARGET;
     const brainContent = `## Brain — ${projectName}\n\n` + sections.join("\n\n") + "\n";
     const brainOverflow = Math.max(0, brainContent.length - BRAIN_TARGET);
     const wheelOverflow = Math.max(0, wheelSection.length - WHEEL_TARGET);
@@ -291,7 +292,9 @@ async function recallOnly() {
       return `- [${m.category}] ${m.content}${tagStr} (importance: ${m.importance})`;
     });
     const memoryContent = lines.length > 0 ? "## Recalled Memories\n\n" + lines.join("\n") + "\n" : "";
-    const maxMemory = 5120 - wheelSection.length;
+    // Dynamic budget — scale up to 8192 if content warrants it
+    const totalBudget = Math.min(8192, Math.max(5120, memoryContent.length + wheelSection.length + 512));
+    const maxMemory = totalBudget - wheelSection.length;
     const trimmedMemory = memoryContent.length > maxMemory ? memoryContent.slice(0, maxMemory) : memoryContent;
     context = trimmedMemory + (wheelSection ? "\n" + wheelSection + "\n" : "");
   }
@@ -336,9 +339,23 @@ async function sessionEnd() {
         byCategory[cat].push(m.content as string);
       }
 
-      const sections = Object.entries(byCategory)
-        .map(([cat, items]) => `[${cat}]: ${items.join("; ")}`)
-        .join("\n");
+      // Prioritize: decisions > preferences > corrections > solutions > architecture > rest
+      const CATEGORY_PRIORITY = [
+        "decision",
+        "preference",
+        "correction-log",
+        "solution",
+        "architecture",
+        "pattern",
+        "insight",
+      ];
+      const sortedEntries = Object.entries(byCategory).sort(([a], [b]) => {
+        const ai = CATEGORY_PRIORITY.indexOf(a);
+        const bi = CATEGORY_PRIORITY.indexOf(b);
+        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+      });
+
+      const sections = sortedEntries.map(([cat, items]) => `[${cat}]: ${items.join("; ")}`).join("\n");
       summary = `Session summary (${stats.count} memories):\n${sections}`;
 
       // Save session summary as a memory
@@ -346,7 +363,7 @@ async function sessionEnd() {
         const cwd = process.env.ULTRATHINK_CWD || process.cwd();
         const scope = cwd.split("/").slice(-2).join("/");
         await createMemory({
-          content: summary.slice(0, 2000),
+          content: summary.slice(0, 4000),
           category: "session-summary",
           importance: 6,
           confidence: 0.9,

@@ -386,6 +386,18 @@ export async function updateMemory(
     return current.length > 0 ? (current[0] as Memory) : null;
   }
 
+  // Re-generate search enrichment if content or category changed
+  let newEnrichment: string | null = null;
+  if (updates.content !== undefined || updates.category !== undefined) {
+    // Fetch current values for fields not being updated
+    const [current] = await sql`SELECT content, category FROM memories WHERE id = ${id}`;
+    if (current) {
+      const finalContent = updates.content ?? (current.content as string);
+      const finalCategory = updates.category ?? (current.category as string);
+      newEnrichment = enrichMemory(finalContent, finalCategory);
+    }
+  }
+
   const rows = await sql`
     UPDATE memories SET
       content = CASE WHEN ${updates.content !== undefined} THEN ${updates.content ?? null} ELSE content END,
@@ -394,6 +406,7 @@ export async function updateMemory(
       confidence = CASE WHEN ${updates.confidence !== undefined} THEN ${updates.confidence ?? null} ELSE confidence END,
       scope = CASE WHEN ${updates.scope !== undefined} THEN ${updates.scope ?? null} ELSE scope END,
       is_archived = CASE WHEN ${updates.is_archived !== undefined} THEN ${updates.is_archived ?? null} ELSE is_archived END,
+      search_enrichment = CASE WHEN ${newEnrichment !== null} THEN ${newEnrichment} ELSE search_enrichment END,
       updated_at = NOW()
     WHERE id = ${id}
     RETURNING *
