@@ -84,7 +84,6 @@ export async function PATCH(request: NextRequest) {
     }
 
     const sql = getDb();
-    const setClauses: string[] = [];
     const values: Record<string, unknown> = {};
 
     if (content !== undefined) values.content = content;
@@ -99,11 +98,11 @@ export async function PATCH(request: NextRequest) {
 
     const rows = (await sql`
       UPDATE memories SET
-        content = COALESCE(${content ?? null}, content),
-        category = COALESCE(${category ?? null}, category),
-        importance = COALESCE(${importance ?? null}, importance),
-        confidence = COALESCE(${confidence ?? null}, confidence),
-        scope = COALESCE(${scope ?? null}, scope),
+        content = CASE WHEN ${content !== undefined} THEN ${content ?? null} ELSE content END,
+        category = CASE WHEN ${category !== undefined} THEN ${category ?? null} ELSE category END,
+        importance = CASE WHEN ${importance !== undefined} THEN ${importance ?? null} ELSE importance END,
+        confidence = CASE WHEN ${confidence !== undefined} THEN ${confidence ?? null} ELSE confidence END,
+        scope = CASE WHEN ${scope !== undefined} THEN ${scope ?? null} ELSE scope END,
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *

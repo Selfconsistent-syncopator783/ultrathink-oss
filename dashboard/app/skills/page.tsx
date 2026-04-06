@@ -714,7 +714,7 @@ export default function SkillsPage() {
 
         {/* Detail Panel */}
         {selected && (
-          <div className="w-96 shrink-0 p-6 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm h-fit sticky top-6 space-y-4">
+          <div className="w-96 shrink-0 p-6 rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-sm h-fit sticky top-6 max-h-[calc(100vh-6rem)] overflow-y-auto space-y-4">
             <div className="flex items-start justify-between">
               <h3 className="text-lg font-mono font-bold text-[var(--color-text)]">{selected.name}</h3>
               <button

@@ -52,9 +52,14 @@ export async function GET() {
       ? "unhealthy"
       : "degraded";
 
-  return NextResponse.json({
-    status: overallStatus,
-    timestamp: new Date().toISOString(),
-    checks,
-  });
+  const httpStatus = overallStatus === "unhealthy" ? 503 : 200;
+
+  return NextResponse.json(
+    {
+      status: overallStatus,
+      timestamp: new Date().toISOString(),
+      checks,
+    },
+    { status: httpStatus }
+  );
 }

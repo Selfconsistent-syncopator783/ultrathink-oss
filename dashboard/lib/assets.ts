@@ -1,13 +1,13 @@
 // Asset Pipeline — Types & Helpers
-// Backend: Puter.js (free, zero-setup image generation)
-// https://github.com/nicholasgasior/puter — MIT License
+// Backends: Puter.js (free, zero-setup) | TinyFish | Gemini-API | Playwright
+// Puter.js: https://github.com/nicholasgasior/puter — zero-setup free image generation
 
 import { readFileSync, writeFileSync, mkdirSync, readdirSync, existsSync, unlinkSync } from "fs";
 import { join } from "path";
 
 // ── Types ──
 
-export type Backend = "puter";
+export type Backend = "puter" | "tinyfish" | "gemini-api" | "playwright";
 export type AssetStatus = "pending" | "generating" | "completed" | "failed";
 
 export interface AssetEntry {
@@ -38,6 +38,21 @@ export interface BackendConfig {
   puter: {
     model: string;
     testMode: boolean;
+  };
+  tinyfish: {
+    apiKey: string;
+    browserProfile: "lite" | "stealth";
+    targetUrl: string;
+  };
+  geminiApi: {
+    secure1psid: string;
+    secure1psidts: string;
+    model: string;
+  };
+  playwright: {
+    headless: boolean;
+    timeout: number;
+    targetUrl: string;
   };
 }
 
@@ -118,6 +133,21 @@ const defaultConfig: BackendConfig = {
     model: "gemini-3.1-flash-image-preview",
     testMode: false,
   },
+  tinyfish: {
+    apiKey: "",
+    browserProfile: "stealth",
+    targetUrl: "https://gemini.google.com",
+  },
+  geminiApi: {
+    secure1psid: "",
+    secure1psidts: "",
+    model: "gemini-3.1-flash-image-preview",
+  },
+  playwright: {
+    headless: false,
+    timeout: 60000,
+    targetUrl: "https://gemini.google.com",
+  },
 };
 
 export function getBackendConfig(): BackendConfig {
@@ -134,6 +164,9 @@ export function saveBackendConfig(config: Partial<BackendConfig>): BackendConfig
   const current = getBackendConfig();
   const merged = {
     puter: { ...current.puter, ...config.puter },
+    tinyfish: { ...current.tinyfish, ...config.tinyfish },
+    geminiApi: { ...current.geminiApi, ...config.geminiApi },
+    playwright: { ...current.playwright, ...config.playwright },
   };
   writeFileSync(CONFIG_PATH, JSON.stringify(merged, null, 2));
   return merged;

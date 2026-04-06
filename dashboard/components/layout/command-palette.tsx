@@ -13,7 +13,7 @@ interface SearchResult {
 }
 
 const PAGES: SearchResult[] = [
-  { type: "page", label: "Dashboard", href: "/", description: "Home overview" },
+  { type: "page", label: "Dashboard", href: "/dashboard", description: "Home overview" },
   { type: "page", label: "Activity", href: "/activity", description: "Activity feed" },
   { type: "page", label: "Analytics", href: "/analytics", description: "Usage analytics" },
   { type: "page", label: "Skills", href: "/skills", description: "Skill catalog" },
@@ -127,7 +127,7 @@ export function CommandPalette() {
       <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setOpen(false)} />
 
       {/* Palette */}
-      <div className="fixed inset-x-0 top-[15%] z-50 mx-auto w-full max-w-xl">
+      <div className="fixed inset-x-0 top-[15%] z-50 mx-auto w-full max-w-xl" role="dialog" aria-modal="true">
         <div className="rounded-2xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl overflow-hidden">
           {/* Input */}
           <div className="flex items-center gap-3 px-6 py-4 border-b border-[var(--color-border)]">

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync, existsSync } from "fs";
-import { join } from "path";
+import { join, resolve, sep } from "path";
 
 const DOCS_DIR = join(process.cwd(), "content/docs");
 const NAV_PATH = join(DOCS_DIR, "_nav.json");
@@ -19,8 +19,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(nav);
   }
 
-  // Return page content
-  const filePath = join(DOCS_DIR, `${slug}.md`);
+  // Return page content — path traversal guard
+  const docsBase = resolve(DOCS_DIR);
+  const filePath = resolve(docsBase, `${slug}.md`);
+  if (!filePath.startsWith(docsBase + sep)) {
+    return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
+  }
   if (!existsSync(filePath)) {
     return NextResponse.json({ error: "Page not found" }, { status: 404 });
   }

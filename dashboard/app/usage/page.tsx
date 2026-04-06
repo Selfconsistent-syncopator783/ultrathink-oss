@@ -371,7 +371,12 @@ export default function UsagePage() {
                   max: memory.active + memory.archived,
                   color: "var(--color-success)",
                 },
-                { label: "Relations", value: memory.relations, max: memory.relations, color: "var(--color-info)" },
+                {
+                  label: "Relations",
+                  value: memory.relations,
+                  max: Math.max(memory.relations, memory.active * 3, 100),
+                  color: "var(--color-info)",
+                },
                 { label: "Avg Imp", value: memory.avgImportance, max: 10, color: "var(--color-accent)" },
               ].map((ring) => (
                 <div key={ring.label} className="flex flex-col items-center gap-1">

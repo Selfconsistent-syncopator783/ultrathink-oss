@@ -6,15 +6,23 @@ import { useTheme } from "@/components/providers/theme-provider";
 const pageTitles: Record<string, string> = {
   "/": "Dashboard",
   "/activity": "Activity Feed",
+  "/analytics": "Analytics",
   "/skills": "Skill Catalog",
   "/skills/graph": "Skill Graph",
+  "/plans": "Plans",
+  "/kanban": "Kanban Board",
   "/memory": "Memory Galaxy",
   "/hooks": "Hooks & Privacy",
-  "/settings": "Settings",
-  "/usage": "Usage",
+  "/cmo": "Chief Marketing Officer",
+  "/ops": "Operations Center",
   "/docs": "Documentation",
-  "/system": "System",
   "/assets": "Asset Pipeline",
+  "/settings": "Settings",
+  "/usage": "Usage Dashboard",
+  "/voice": "Voice AI",
+  "/system": "System Health",
+  "/integrations": "Integrations",
+  "/testing": "Testing Dashboard",
 };
 
 export function Header() {

@@ -27,22 +27,22 @@ async function fetchStats() {
     if (!process.env.DATABASE_URL) return null;
     const sql = getDb();
 
-    const [memRows, planRows, hookRows, sessionRows] = await Promise.all([
+    const [memRows, memWeekRows, planRows, hookRows, sessionRows, spinRows] = (await Promise.all([
       sql`SELECT COUNT(*) as count FROM memories WHERE is_archived = false`,
+      sql`SELECT COUNT(*) as count FROM memories WHERE created_at > NOW() - INTERVAL '7 days'`,
       sql`SELECT COUNT(*) as count FROM plans`,
       sql`SELECT COUNT(*) as count FROM hook_events`,
       sql`SELECT COUNT(*) as count FROM sessions`,
-    ]) as Record<string, unknown>[][];
-    const memRow = memRows[0];
-    const planRow = planRows[0];
-    const hookRow = hookRows[0];
-    const sessionRow = sessionRows[0];
+      sql`SELECT COUNT(*) as count FROM adaptations WHERE is_active = true`,
+    ])) as Record<string, unknown>[][];
 
     return {
-      memories: Number(memRow.count),
-      plans: Number(planRow.count),
-      hookEvents: Number(hookRow.count),
-      sessions: Number(sessionRow.count),
+      memories: Number(memRows[0].count),
+      memoriesWeek: Number(memWeekRows[0].count),
+      plans: Number(planRows[0].count),
+      hookEvents: Number(hookRows[0].count),
+      sessions: Number(sessionRows[0].count),
+      spins: Number(spinRows[0].count),
     };
   } catch {
     return null;
@@ -256,6 +256,13 @@ const StatIcons = {
       />
     </svg>
   ),
+  tekio: (
+    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
+      <circle cx="12" cy="12" r="9" strokeLinecap="round" />
+      <path strokeLinecap="round" d="M12 3v4m0 10v4M3 12h4m10 0h4" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  ),
 };
 
 // Quick action icons
@@ -329,9 +336,16 @@ export default async function HomePage() {
     {
       label: "Memories",
       value: stats ? String(stats.memories) : "--",
-      change: stats ? "Active" : "Connect DB",
+      change: stats ? `${stats.memoriesWeek} this week` : "Connect DB",
       color: "var(--color-info)",
       icon: StatIcons.memories,
+    },
+    {
+      label: "Tekio Spins",
+      value: stats ? String(stats.spins) : "--",
+      change: stats ? "Active adaptations" : "Connect DB",
+      color: "var(--color-warning)",
+      icon: StatIcons.tekio,
     },
     {
       label: "Active Plans",
@@ -344,7 +358,7 @@ export default async function HomePage() {
       label: "Hook Events",
       value: stats ? String(stats.hookEvents) : "--",
       change: stats ? `${stats.sessions} sessions` : "Connect DB",
-      color: "var(--color-warning)",
+      color: "var(--color-accent)",
       icon: StatIcons.hooks,
     },
   ];
@@ -367,7 +381,7 @@ export default async function HomePage() {
     <div className="space-y-8">
       {/* Stats Grid */}
       <section aria-label="Overview stats">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-6">
           {statCards.map((card) => (
             <div
               key={card.label}

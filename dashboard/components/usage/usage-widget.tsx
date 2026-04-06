@@ -33,13 +33,8 @@ export function UsageWidget() {
 
   useEffect(() => {
     fetch("/api/usage")
-      .then((r) => {
-        if (!r.ok) return null;
-        return r.json();
-      })
-      .then((d) => {
-        if (d?.sessions?.daily) setData(d);
-      })
+      .then((r) => r.json())
+      .then(setData)
       .catch((err) => console.warn("[usage-widget]", err.message));
   }, []);
 
