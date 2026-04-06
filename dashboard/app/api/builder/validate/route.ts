@@ -1,8 +1,10 @@
 // intent: validate a builder campaign key against the builder_keys table
 // status: done
+// next: none
 // confidence: high
 
 import { NextRequest, NextResponse } from "next/server";
+import { createHmac } from "crypto";
 import { getDb } from "@/lib/db";
 
 export async function POST(request: NextRequest) {
@@ -31,10 +33,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ valid: false, error: "Invalid or expired key" });
     }
 
+    const validatedAt = new Date().toISOString();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+    // HMAC token for optional server-side re-verification
+    const signingKey = process.env.ADMIN_SECRET || "ultrathink-default-secret";
+    const token = createHmac("sha256", signingKey).update(`${key}${validatedAt}`).digest("hex");
+
     return NextResponse.json({
       valid: true,
       tier: "builder",
-      ...(rows[0].expires_at ? { expires_at: rows[0].expires_at } : {}),
+      validated_at: validatedAt,
+      expires_at: expiresAt,
+      token,
+      ...(rows[0].expires_at ? { key_expires_at: rows[0].expires_at } : {}),
     });
   } catch (err) {
     console.error("Builder validate error:", err);

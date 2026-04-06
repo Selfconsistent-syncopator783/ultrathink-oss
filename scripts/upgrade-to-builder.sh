@@ -143,9 +143,10 @@ write_config() {
     local tmp
     tmp=$(jq \
       --arg key "$key" \
+      --arg bkey "$key" \
       --arg tier "$tier" \
       --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-      '. + {key: $key, tier: $tier, upgradedAt: $ts}' \
+      '. + {key: $key, builder_key: $bkey, tier: $tier, upgradedAt: $ts}' \
       "$CONFIG_FILE" 2>/dev/null) || {
       # jq failed — file might be malformed, overwrite
       tmp=""
@@ -170,6 +171,7 @@ write_fresh_config() {
   cat > "$CONFIG_FILE" <<CONF
 {
   "key": "$key",
+  "builder_key": "$key",
   "tier": "$tier",
   "upgradedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
@@ -198,6 +200,7 @@ main() {
   echo ""
   info "Tier: Builder"
   info "Config: $CONFIG_FILE"
+  info "Your key will be validated at each session start."
   echo ""
   success "You're all set. Restart your Claude session to use Builder features."
   echo ""
