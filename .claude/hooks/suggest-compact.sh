@@ -4,6 +4,7 @@
 # Adapted from everything-claude-code's suggest-compact.js
 
 set -euo pipefail
+umask 077  # UltraThink: restrict temp files to owner only
 
 # Session-scoped counter file
 CC_SID="${CC_SESSION_ID:-unknown}"

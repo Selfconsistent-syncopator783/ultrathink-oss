@@ -6,6 +6,7 @@
 # Shows per-agent lines with status icons and progress.
 
 set -euo pipefail
+umask 077  # UltraThink: restrict temp files to owner only
 
 INPUT=$(cat)
 

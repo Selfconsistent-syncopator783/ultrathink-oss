@@ -12,6 +12,7 @@
 # Reports pass/fail via additionalContext to the orchestrator.
 
 set -euo pipefail
+umask 077  # UltraThink: restrict temp files to owner only
 
 source "$(dirname "${BASH_SOURCE[0]}")/hook-log.sh" 2>/dev/null || hook_log() { :; }
 

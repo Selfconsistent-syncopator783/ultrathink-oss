@@ -125,7 +125,15 @@ if [[ -n "$CC_SID" ]]; then
   rm -f "/tmp/ultrathink-status/identity-$CC_SID" 2>/dev/null || true
   rm -f "/tmp/ultrathink-status/skills-$CC_SID" 2>/dev/null || true
   rm -f "/tmp/ultrathink-status/preferences-$CC_SID" 2>/dev/null || true
+  rm -f "/tmp/ultrathink-status/recall-cache-$CC_SID" 2>/dev/null || true
 fi
+
+# GC: clean up orphan /tmp files older than 24 hours
+find /tmp/ultrathink-memories -name "*.json" -mmin +1440 -delete 2>/dev/null || true
+find /tmp/ultrathink-wheel-turns -name "*.json" -mmin +1440 -delete 2>/dev/null || true
+find /tmp/ultrathink-wheel-turns -name "learn-lock-*" -mmin +60 -delete 2>/dev/null || true
+find /tmp/ultrathink-skill-suggestions -name "*.json" -mmin +1440 -delete 2>/dev/null || true
+find /tmp/ultrathink-tool-usage-* -mmin +1440 -delete 2>/dev/null || true
 
 # Notify Discord — session end summary
 NOTIFY_SCRIPT="$HOOK_DIR/notify.sh"

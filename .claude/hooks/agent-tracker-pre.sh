@@ -6,6 +6,7 @@
 # Paired with progress-display.sh (PostToolUse).
 
 set -euo pipefail
+umask 077  # UltraThink: restrict temp files to owner only
 
 INPUT=$(cat)
 

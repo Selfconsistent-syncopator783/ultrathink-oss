@@ -5,6 +5,7 @@
 # Also detects stuck agents.
 
 set -euo pipefail
+umask 077  # UltraThink: restrict temp files to owner only
 
 INPUT=$(cat)
 

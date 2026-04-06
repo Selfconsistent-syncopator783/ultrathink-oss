@@ -1459,15 +1459,19 @@ function main() {
       if (existsSync(statePath)) {
         try {
           stateContent = readFileSync(statePath, "utf-8").slice(0, 2000);
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
       if (existsSync(specPath)) {
         try {
           const specFull = readFileSync(specPath, "utf-8");
           // Extract acceptance criteria section for quick reference
-          const acMatch = specFull.match(/## Acceptance Criteria\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+          const acMatch = specFull.match(/## Acceptance Criteria\n([\s\S]*?)(?=\n## |\n---|$)/);
           specSummary = acMatch ? acMatch[1].trim().slice(0, 1000) : "";
-        } catch {}
+        } catch {
+          /* ignore */
+        }
       }
 
       // Count existing plans
@@ -1475,7 +1479,9 @@ function main() {
       try {
         const files = readdirSync(planningDir);
         planCount = files.filter((f: string) => f.match(/^\d+-\d+-PLAN\.md$/)).length;
-      } catch {}
+      } catch {
+        /* ignore */
+      }
 
       refs.push(
         `⚡ **GSD ACTIVE — MANDATORY WORKFLOW**\n` +
@@ -1877,9 +1883,30 @@ function detectAndSaveCorrections(text: string): void {
   // Extract the correction content (what the user wants instead)
   const correctionContent = text.slice(0, 300).trim();
 
+  // Extract what went wrong vs what the user wants
+  // "no, not X — do Y instead" → wrong="X", correct="Y"
+  let wrongApproach = "Previous approach";
+  let correctApproach = correctionContent;
+
+  // Try to split "no/not X, instead Y" pattern
+  const splitMatch = text.match(
+    /\b(?:no[,.]?\s+)?(?:not\s+|don'?t\s+)(.{5,80})(?:[,;.]\s*(?:instead|rather|use|do|try)\s+(.{5,150}))/i
+  );
+  if (splitMatch) {
+    wrongApproach = splitMatch[1].trim();
+    correctApproach = splitMatch[2]?.trim() || correctionContent;
+  }
+
+  // "I meant X" / "what I want is X"
+  const meantMatch =
+    text.match(/\bi\s+meant\s+(.{5,150})/i) || text.match(/what\s+i\s+(?:want|need)\s+is\s+(.{5,150})/i);
+  if (meantMatch) {
+    correctApproach = meantMatch[1].trim().replace(/[.!?,;]+$/, "");
+  }
+
   const memory = {
     content: `[CORRECTION] ${correctionContent}`,
-    category: "preference",
+    category: "correction-log",
     importance: 9,
     confidence: 0.9,
     scope,
@@ -1889,14 +1916,16 @@ function detectAndSaveCorrections(text: string): void {
 
   writeFileSync(join(MEMORIES_DIR, `${ts}-correction.json`), JSON.stringify(memory));
 
-  // Also write a wheel-turn trigger file for the session-end hook to process
+  // Write wheel-turn trigger with both wrong and correct approach
+  // so session-end hook can call wheel-correct properly
   const wheelDir = "/tmp/ultrathink-wheel-turns";
   if (!existsSync(wheelDir)) mkdirSync(wheelDir, { recursive: true });
 
   const wheelEvent = {
     type: "user-correction",
     timestamp: new Date().toISOString(),
-    correction: correctionContent,
+    correction: wrongApproach,
+    correct_approach: correctApproach,
     scope,
   };
 

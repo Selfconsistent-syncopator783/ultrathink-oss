@@ -3,6 +3,8 @@
 # Usage: source hook-log.sh; hook_log <hook_name> <status> [detail]
 # Timing: hook_log "name" "started" sets HOOK_START_MS; "done" auto-calculates duration
 
+umask 077  # UltraThink: restrict temp files to owner only
+
 HOOK_START_MS=""
 
 hook_log() {

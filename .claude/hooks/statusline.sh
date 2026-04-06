@@ -2,6 +2,8 @@
 # UltraThink Status Line — friendly, informative bar at bottom of Claude Code
 # Receives JSON session data on stdin. Prints formatted status.
 
+umask 077  # UltraThink: restrict temp files to owner only
+
 input=$(cat)
 
 # --- Session data from Claude Code ---
@@ -326,6 +328,14 @@ fi
 # === Line 2 fallback: Stats + Extras (when no GSD or agents active) ===
 if [[ -z "$GSD_ACTIVE" && -z "$AGENTS_ACTIVE" ]]; then
 L2="  "
+
+# Tekiō wheel spins
+WHEEL_COUNT=""
+WHEEL_CACHE="$CACHE_DIR/wheel-count"
+[[ -f "$WHEEL_CACHE" ]] && WHEEL_COUNT=$(cat "$WHEEL_CACHE" 2>/dev/null)
+if [[ -n "$WHEEL_COUNT" && "$WHEEL_COUNT" != "0" ]]; then
+  L2+="\033[38;5;215m☸ ${WHEEL_COUNT} spins${RESET}  "
+fi
 
 # Memories
 if [[ -n "$WEEK_MEMORIES" && "$WEEK_MEMORIES" != "null" ]]; then

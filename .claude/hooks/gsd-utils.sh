@@ -7,6 +7,8 @@
 #
 # Verification: checks SPEC.md → PLAN.md → VERIFICATION.md traceability.
 
+umask 077  # UltraThink: restrict temp files to owner only
+
 # --- Progress Bridge Functions ---
 
 # Get the progress file path for the current session

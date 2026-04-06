@@ -60,7 +60,10 @@ case "$EXT" in
   json)
     if command -v jq &>/dev/null; then
       if ! jq empty "$FILE_PATH" 2>/dev/null; then
-        log_event "Invalid JSON detected"
+        log_event "Invalid JSON detected — blocking"
+        # Reject edit before apply (Anthropic harness pattern)
+        echo '{"decision":"block","reason":"Invalid JSON syntax. Fix the JSON before applying."}'
+        exit 0
       else
         log_event "JSON valid"
       fi
@@ -69,8 +72,11 @@ case "$EXT" in
 
   sh|bash|zsh)
     if command -v bash &>/dev/null; then
-      if ! bash -n "$FILE_PATH" 2>/dev/null; then
-        log_event "Shell syntax error detected"
+      SYNTAX_ERR=$(bash -n "$FILE_PATH" 2>&1 || true)
+      if [[ -n "$SYNTAX_ERR" ]]; then
+        log_event "Shell syntax error detected — blocking"
+        echo "{\"decision\":\"block\",\"reason\":\"Shell syntax error: ${SYNTAX_ERR}\"}"
+        exit 0
       else
         log_event "Shell syntax OK"
       fi

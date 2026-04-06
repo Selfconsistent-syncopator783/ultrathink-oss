@@ -111,31 +111,29 @@ else
       fi
     fi
 
-    # Extract user preferences for skill scoring (preference boosting in prompt-analyzer)
-    # Uses memory-runner instead of inline npx tsx -e to avoid extra process spawn
-    if [[ -n "$CC_SID" ]]; then
-      (
-        raw_prefs=$(cd "$ULTRA_ROOT" && npx tsx "$RUNNER" preferences 2>/dev/null) || raw_prefs='[]'
-        echo "$raw_prefs" > "/tmp/ultrathink-status/preferences-${CC_SID}.json"
-      ) &
-      pid_prefs=$!
-    fi
-
-    # Run background jobs — fire-and-forget (DO NOT wait — these are informational)
-    mkdir -p /tmp/ultrathink-status 2>/dev/null || true
-    WEEKLY_SCRIPT="$ULTRA_ROOT/memory/scripts/weekly-stats.ts"
-    WHEEL_SCRIPT="$ULTRA_ROOT/memory/scripts/wheel-count.ts"
-    CONTEXT_TREE_SCRIPT="$ULTRA_ROOT/memory/scripts/context-tree.ts"
-
-    # All 3 are non-critical — launch and forget (saves 2-4s on session start)
-    (cd "$ULTRA_ROOT" && timeout 10 npx tsx "$WEEKLY_SCRIPT" > /tmp/ultrathink-status/weekly-stats 2>/dev/null) &
-    [[ -f "$WHEEL_SCRIPT" ]] && (cd "$ULTRA_ROOT" && timeout 10 npx tsx "$WHEEL_SCRIPT" > /tmp/ultrathink-status/wheel-count 2>/dev/null) &
-    [[ -f "$CONTEXT_TREE_SCRIPT" ]] && (cd "$ULTRA_ROOT" && timeout 10 npx tsx "$ULTRA_ROOT/memory/scripts/context-tree-summary.ts" > /tmp/ultrathink-status/context-tree 2>/dev/null) &
-
-    # Only wait for preferences (needed for prompt-analyzer skill boosting)
-    [[ -n "${pid_prefs:-}" ]] && wait "$pid_prefs" 2>/dev/null || true
-
+    # Output session context FIRST — everything below is non-blocking background work
     echo "$output"
+
+    # Extract user preferences for skill scoring (preference boosting in prompt-analyzer)
+    # All background jobs launch after output — they don't block the session start response
+    mkdir -p /tmp/ultrathink-status 2>/dev/null || true
+    (
+      cd "$ULTRA_ROOT"
+      # Preferences for prompt-analyzer skill boosting
+      if [[ -n "$CC_SID" ]]; then
+        raw_prefs=$(npx tsx "$RUNNER" preferences 2>/dev/null) || raw_prefs='[]'
+        echo "$raw_prefs" > "/tmp/ultrathink-status/preferences-${CC_SID}.json"
+      fi
+
+      # Non-critical stats — all fire-and-forget
+      WEEKLY_SCRIPT="$ULTRA_ROOT/memory/scripts/weekly-stats.ts"
+      WHEEL_SCRIPT="$ULTRA_ROOT/memory/scripts/wheel-count.ts"
+      CONTEXT_TREE_SCRIPT="$ULTRA_ROOT/memory/scripts/context-tree-summary.ts"
+
+      timeout 10 npx tsx "$WEEKLY_SCRIPT" > /tmp/ultrathink-status/weekly-stats 2>/dev/null || true
+      [[ -f "$WHEEL_SCRIPT" ]] && timeout 10 npx tsx "$WHEEL_SCRIPT" > /tmp/ultrathink-status/wheel-count 2>/dev/null || true
+      [[ -f "$CONTEXT_TREE_SCRIPT" ]] && timeout 10 npx tsx "$CONTEXT_TREE_SCRIPT" > /tmp/ultrathink-status/context-tree 2>/dev/null || true
+    ) &
   else
     echo '{}'
   fi

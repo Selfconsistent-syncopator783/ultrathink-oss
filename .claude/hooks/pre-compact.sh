@@ -10,6 +10,7 @@
 # session-start recovery.
 
 set -euo pipefail
+umask 077  # UltraThink: restrict temp files to owner only
 
 source "$(dirname "${BASH_SOURCE[0]}")/hook-log.sh" 2>/dev/null || hook_log() { :; }
 hook_log "pre-compact" "started"
