@@ -23,7 +23,18 @@ export async function GET(request: NextRequest) {
   try {
     const sql = getDb();
     const { searchParams } = request.nextUrl;
+    const type = searchParams.get("type");
     const status = searchParams.get("status");
+
+    // Return builder keys when type=keys
+    if (type === "keys") {
+      const keys = await sql`
+        SELECT id, user_handle, email, is_active, created_at, revoked_at
+        FROM builder_keys
+        ORDER BY created_at DESC
+      `;
+      return NextResponse.json({ keys });
+    }
 
     const rows = status
       ? await sql`
@@ -58,11 +69,30 @@ export async function POST(request: NextRequest) {
       action?: string;
     };
 
+    // Revoke a builder key
+    if (action === "revoke") {
+      const { key_id } = body as { key_id?: string };
+      if (!key_id || typeof key_id !== "string") {
+        return NextResponse.json({ error: "key_id is required for revoke" }, { status: 400 });
+      }
+      const sql = getDb();
+      const updated = await sql`
+        UPDATE builder_keys
+        SET is_active = false, revoked_at = NOW()
+        WHERE id = ${key_id} AND is_active = true
+        RETURNING id
+      `;
+      if (updated.length === 0) {
+        return NextResponse.json({ error: "Key not found or already revoked" }, { status: 404 });
+      }
+      return NextResponse.json({ status: "revoked", key_id });
+    }
+
     if (!application_id || typeof application_id !== "string") {
       return NextResponse.json({ error: "application_id is required" }, { status: 400 });
     }
     if (action !== "approve" && action !== "reject") {
-      return NextResponse.json({ error: "action must be 'approve' or 'reject'" }, { status: 400 });
+      return NextResponse.json({ error: "action must be 'approve', 'reject', or 'revoke'" }, { status: 400 });
     }
 
     const sql = getDb();
