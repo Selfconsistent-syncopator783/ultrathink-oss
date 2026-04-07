@@ -1,24 +1,36 @@
 # /forge — Product Builder Pipeline
 
-> Single meta-command that orchestrates the full product-building lifecycle.
 > `idea → clarify → feasibility → plan → build → validate → improve → ship`
 
 ## Trigger
 
-- Keywords: "forge", "build product", "build app", "create app", "ship", "from idea to product"
-- When user has a product idea and wants structured execution
+- `/forge`, `/forge <idea>`, "build product", "build app", "create app", "ship"
+- Invoked when user has a product idea and wants structured execution
 
-## Mode
+## How It Works
 
-Forge runs in **guided mode**: step-by-step, plain language, explains each phase before executing.
+Forge is a **7-phase pipeline** that turns an idea into a shipped product. Each phase has clear inputs, outputs, and exit criteria. State persists to disk so work survives compaction and session restarts.
 
-## State
+**Always guided**: explains each step in plain language before executing.
 
-Forge state persists at `~/.ultrathink/forge/projects/<hash>.json` where hash = first 8 chars of SHA256 of the project working directory path.
+---
 
-**Read state at session start.** If forge-state exists for current project, resume from last stage.
+## State Management
 
-**State format (JSON — never Markdown):**
+**State file**: `~/.ultrathink/forge/projects/<hash>.json`
+**Hash**: first 8 chars of `echo -n "$PWD" | shasum -a 256`
+
+### On `/forge` invocation:
+1. Compute hash from current working directory
+2. Check if state file exists
+3. If exists → show progress summary, ask "Continue from [stage]?" or "Start fresh?"
+4. If not → create state file, enter CLARIFY
+
+### State updates:
+- Write state after EVERY phase transition and feature completion
+- Include timestamp in `updated` field
+- Append phase transitions to `history` array
+
 ```json
 {
   "project": "descriptive-slug",
@@ -56,114 +68,155 @@ Forge state persists at `~/.ultrathink/forge/projects/<hash>.json` where hash = 
 }
 ```
 
+---
+
 ## Phase 1: CLARIFY
 
-Ask the user 3-5 targeted questions to understand the product:
-1. **Who** is the target user?
-2. **What** specific problem does this solve?
-3. **Why** is this better than existing solutions?
-4. **What** is the MVP scope? (what's the ONE thing it must do?)
-5. **What** stack preference? (or let forge decide)
+**Goal**: Understand what we're building and for whom.
 
-Explain why each question matters. Use plain language.
+Ask:
+1. **Who** is the target user? *(so we design for real needs, not assumptions)*
+2. **What** specific problem does this solve? *(one sentence, forces clarity)*
+3. **Why** is this better than what exists? *(validates the idea has a reason to exist)*
+4. **What** is the MVP scope? *(the ONE thing it must do — prevents scope creep)*
+5. **Stack preference?** *(or say "you decide" and forge picks based on the problem)*
 
-Output: Update `spec` in forge-state.json.
+**Exit criteria**: All 5 answers captured → write to `spec` → advance to FEASIBILITY.
+
+---
 
 ## Phase 2: FEASIBILITY
 
-Score the idea:
-- **Tech complexity** (1-5): How hard to build?
-- **Novelty** (1-5): Does this exist already? What's new?
-- **Time estimate**: Realistic timeline with the chosen stack
-- **Risk factors**: What could go wrong?
+**Goal**: Honest assessment before investing build time.
 
-Output: Update `spec.feasibility_score` and `spec.complexity_score`.
+Score:
+| Dimension | Scale | Question |
+|-----------|-------|----------|
+| Tech complexity | 1-5 | How hard to build with this stack? |
+| Novelty | 1-5 | What's genuinely new here? |
+| Time estimate | hours/days | Realistic with chosen stack |
+| Risk factors | list | What could block or derail this? |
+
+Present the scores to the user. If complexity is high (4-5), flag it and suggest scope reduction.
+
+**Exit criteria**: Scores written to `spec.feasibility_score` and `spec.complexity_score` → user confirms "proceed" → advance to PLAN.
+
+---
 
 ## Phase 3: PLAN
 
-Generate a phased roadmap:
-- 3-5 phases, each with 5-10 atomic features
-- Each feature has a clear pass/fail test
-- Order by dependency (build foundations first)
-- Assign features to sprints
+**Goal**: Break the product into buildable atomic features.
 
-Use existing skills: invoke `/plan` for task decomposition, `/scout` for tech research.
+Generate:
+- **3-5 phases**, ordered by dependency (foundations first)
+- **5-10 features per phase**, each with a clear pass/fail test
+- Show one phase at a time, explain each feature in plain language
+- Ask **"Ready to proceed?"** before finalizing
 
-Show one phase at a time. Explain what each feature does in plain language. Ask "Ready to proceed?" before continuing.
+Use `/plan` for task decomposition, `/scout` for tech research if needed.
 
-Output: Update `phases` array in forge-state.json. Each feature starts with `"passes": false`.
+**Exit criteria**: User approves the plan → write `phases` array (all features `passes: false`) → advance to BUILD.
+
+---
 
 ## Phase 4: BUILD
 
+**Goal**: Implement features one at a time, test each, commit each.
+
 For each feature in the current phase:
-1. Read the feature spec from forge-state
-2. Build it (write code, create files, install deps)
-3. Run the project's test command
-4. If tests pass → set `feature.passes = true`, commit, move to next
-5. If tests fail → fix and retry (max 3 attempts per feature)
+1. **Explain** what you're about to build and why
+2. **Build** it (write code, create files, install deps)
+3. **Test** — run the project's test command
+4. **Pass** → set `feature.passes = true`, commit: `feat(forge): <phase>.<feature> — <description>`
+5. **Fail** → fix and retry (max 3 attempts)
 
-Chain existing skills as needed: `/react`, `/nextjs`, `/tailwindcss`, `/drizzle`, `/api-designer`, etc.
+Rules:
+- **One feature at a time.** Never build multiple simultaneously.
+- **Commit after each feature.** Small, reviewable commits.
+- Chain skills as needed: `/react`, `/nextjs`, `/tailwindcss`, `/drizzle`, etc.
+- Update state after each feature completion.
 
-**One feature at a time.** Never build multiple features simultaneously.
-**Commit after each feature.** Message: `feat(forge): <phase>.<feature> — <description>`
+When all features in a phase pass → advance to VALIDATE.
 
-Before building each feature, explain what you're about to do and why.
-
-Output: Update `phases[n].features[m].passes` after each feature.
+---
 
 ## Phase 5: VALIDATE
 
-Run the evaluator against the current phase:
-1. `npm run build` — must succeed
-2. `npm run test` — must pass
+**Goal**: Verify the phase actually works as a whole.
+
+Run:
+1. `npm run build` (or equivalent) — must succeed
+2. `npm run test` (or equivalent) — must pass
 3. Structural checks: files exist, routes respond, no console errors
 
-Scoring (0-1 each):
-- **Functionality**: Does it work as specified?
-- **Design**: Is the UI/UX acceptable?
-- **Craft**: Code quality, no console.log, proper error handling
-- **Originality**: Does it deliver the unique value prop?
+Score (0-1 each):
+| Dimension | What it measures |
+|-----------|-----------------|
+| Functionality | Does it work as specified? |
+| Design | Is the UI/UX acceptable? |
+| Craft | Code quality, error handling, no debug artifacts |
+| Originality | Does it deliver the unique value prop? |
 
-Output: Update `evaluation` in forge-state.json.
+**Exit criteria**: All scores ≥ 0.7 → advance to next phase's BUILD (or SHIP if last phase). Any score < 0.7 → enter IMPROVE.
+
+---
 
 ## Phase 6: IMPROVE
 
-Fix validation failures:
-1. Read evaluation scores and failure details
-2. Prioritize by impact (functionality > design > craft > originality)
-3. Fix issues one at a time
-4. Re-validate after fixes
+**Goal**: Fix what validation caught.
 
-Loop: IMPROVE → VALIDATE until passing or max 3 improvement cycles.
+1. Read scores and failure details from state
+2. Prioritize: functionality > design > craft > originality
+3. Fix one issue at a time
+4. Re-run VALIDATE after fixes
+
+**Loop**: IMPROVE → VALIDATE, max 3 cycles. If still failing after 3 → ask user how to proceed.
+
+---
 
 ## Phase 7: SHIP
 
-Prepare for deployment:
-1. Generate/update README.md with setup instructions
+**Goal**: Prepare for deployment.
+
+1. Generate/update `README.md` with setup instructions
 2. Create PR if on a feature branch
 3. List deployment steps for the chosen stack
 4. Generate launch checklist
+5. Walk through each step — explain what deployment means
 
-Walk through each step. Explain what deployment means. Help with any unfamiliar steps.
+**Exit criteria**: User confirms shipped → set `stage: "complete"`.
 
-Output: Set `stage: "complete"` in forge-state.json.
+---
+
+## Flow Diagram
+
+```
+CLARIFY ──[spec done]──→ FEASIBILITY ──[user confirms]──→ PLAN
+                                                            │
+                                                    [user approves]
+                                                            ▼
+SHIP ←──[all phases done]── VALIDATE ←──────────── BUILD
+                               │                      ↑
+                          [score < 0.7]                │
+                               ▼                       │
+                            IMPROVE ───[re-validate]───┘
+```
+
+**Cannot skip phases.** Cannot BUILD without approved PLAN. Cannot SHIP without passing VALIDATE.
+
+---
+
+## Directory Setup
+
+On first forge invocation, ensure these exist:
+```bash
+mkdir -p ~/.ultrathink/forge/projects
+```
 
 ## Resuming
 
-When starting a new session in a project that has forge-state:
-1. Read `~/.ultrathink/forge/projects/<hash>.json`
-2. Display current stage and progress
-3. Ask: "Continue from [stage]?" or "Start fresh?"
+On any `/forge` call in a project with existing state:
+- Show: project name, current stage, phase progress (X/Y features done)
+- Ask: "Continue?" or "Start fresh?"
 
-## Forge Utility Functions
-
-To compute project hash:
-```bash
-echo -n "$PWD" | shasum -a 256 | cut -c1-8
-```
-
-To read forge state:
-```bash
-HASH=$(echo -n "$PWD" | shasum -a 256 | cut -c1-8)
-STATE="$HOME/.ultrathink/forge/projects/${HASH}.json"
-```
+Starting fresh archives the old state to `<hash>-<timestamp>.json`.
