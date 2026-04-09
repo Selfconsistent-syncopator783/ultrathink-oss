@@ -15,5 +15,6 @@ export default defineConfig({
       "code-intel/node_modules/**",
     ],
     testTimeout: 10000,
+    fileParallelism: false, // DB-backed tests need sequential file execution
   },
 });

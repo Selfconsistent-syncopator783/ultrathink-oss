@@ -1,0 +1,23 @@
+{
+  "$schema": "https://github.com/openai/codex/blob/main/codex-rs/core/config.schema.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "command": [".claude/hooks/ultrathink-privacy-hook.sh"],
+        "description": "Block access to sensitive files (.env, vault, credentials)"
+      }
+    ],
+    "SessionStart": [
+      {
+        "command": ["npx", "tsx", "memory/scripts/memory-runner.ts", "session-start"],
+        "description": "Load memory context and adaptive learning rules"
+      }
+    ],
+    "Stop": [
+      {
+        "command": ["npx", "tsx", "memory/scripts/memory-runner.ts", "flush"],
+        "description": "Flush pending memories and close session"
+      }
+    ]
+  }
+}

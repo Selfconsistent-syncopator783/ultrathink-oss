@@ -24,14 +24,27 @@ When a task matches a skill's triggers, load its `SKILL.md`.
 **Auto-trigger**: UserPromptSubmit hook scores skills, injects top 5 via `additionalContext`.
 **Intent detection**: build/debug/refactor/explore/deploy/test/design/plan → category boosting.
 
-## Memory
+## Memory (Second Brain)
 
+- **4-wing structure**: agent (core/rules/skills) | user (profile/preferences/projects) | knowledge (decisions/patterns/insights/reference) | experience (sessions/outcomes/errors)
+- **4-layer recall**: L0 identity (~100tok) → L1 essential (~300tok) → L2 project (~500tok) → L3 on-demand
 - Read before write | Selective writes | Confidence 0-1 | Importance 1-10 | Scoped by project
 - Storage: `memory/src/memory.ts` → Neon Postgres
+- **Search**: 3-tier hybrid — tsvector + pg_trgm + ILIKE with synonym expansion (`memory/src/enrich.ts`)
+- **Enrichment**: Write-time synonym expansion stored in `search_enrichment` column; query-time expansion for broader recall
+- **Ranking**: Two-pass with tsvector boost, temporal stopword recall, frequency decay cap
 - Auto-memory: `/tmp/ultrathink-memories/<ts>-<slug>.json` → flushed at session end
 - SessionStart recalls memories; Stop flushes + closes session
 - CLI: `npx tsx memory/scripts/memory-runner.ts <command>` (session-start|save|flush|search)
-- **Search**: Hybrid tsvector + pg_trgm + ILIKE with synonym expansion
+- **AAAK**: Lossless shorthand dialect for context injection — ~1.5x compression on recall output (`memory/src/aaak.ts`). Use `aaak-context` CLI command or `recall(scope, { aaak: true })`.
+- **Benchmark**: LongMemEval 50/50 (100%) — validated across 5 ability categories
+
+### Obsidian Vault
+
+- Vault path: `~/.ultrathink/vault/` — mirrors MemPalace structure (`{wing}/{hall}/{slug}.md`)
+- User edits vault (Obsidian) → `vault-to-db` syncs to DB on session start
+- AI creates memories → `db-to-vault` exports to vault on session end
+- CLI: `npx tsx scripts/vault-sync.ts <vault-to-db|db-to-vault|init|status|full-sync>`
 
 ## Key Paths
 

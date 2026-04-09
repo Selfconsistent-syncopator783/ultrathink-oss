@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 import { getClient } from "./client.js";
-import { enrichMemory } from "./enrich.js";
+import { enrichMemory, enrichQuery, expandQuerySynonyms } from "./enrich.js";
 
 export interface Memory {
   id: string;
@@ -247,8 +247,13 @@ export async function semanticSearch(opts: {
   const minImportance = opts.minImportance ?? 1;
   const minSimilarity = opts.minSimilarity ?? 0.05;
 
+  // Query-time enrichment: expand dates, synonyms, etc. for better tsvector matching
+  const enrichedQuery = enrichQuery(opts.query);
+
   // Tier 1: tsvector full-text search (best quality, handles stemming/stopwords)
   // Uses websearch_to_tsquery for safe user-input handling (no raw tsquery operators)
+  // NOTE: Only uses original query here — enriched query uses AND between ALL terms
+  // which makes matching STRICTER, not broader. Enrichment helps in pg_trgm tiers instead.
   const tsRows = await sql`
     SELECT m.*, array_agg(mt.tag) FILTER (WHERE mt.tag IS NOT NULL) as tags,
            ts_rank(m.search_vector, websearch_to_tsquery('english', ${opts.query})) as ts_score,
@@ -267,18 +272,29 @@ export async function semanticSearch(opts: {
   let rows = tsRows as any[];
 
   // Tier 2: pg_trgm fuzzy search if tsvector returned too few results
+  // Checks both content AND search_enrichment for wider matching
   if (rows.length < limit) {
     const seen = new Set(rows.map((r: Record<string, unknown>) => r.id as string));
     const trigramRows = await sql`
       SELECT m.*, array_agg(mt.tag) FILTER (WHERE mt.tag IS NOT NULL) as tags,
              0::float as ts_score,
-             similarity(m.content, ${opts.query}) as sim
+             GREATEST(
+               similarity(m.content, ${opts.query}),
+               similarity(COALESCE(m.search_enrichment, ''), ${opts.query}),
+               similarity(m.content, ${enrichedQuery}),
+               similarity(COALESCE(m.search_enrichment, ''), ${enrichedQuery})
+             ) as sim
       FROM memories m
       LEFT JOIN memory_tags mt ON m.id = mt.memory_id
       WHERE m.is_archived = false
         AND m.importance >= ${minImportance}
         AND (${opts.scope ?? null}::text IS NULL OR m.scope = ${opts.scope ?? null})
-        AND similarity(m.content, ${opts.query}) > ${minSimilarity}
+        AND (
+          similarity(m.content, ${opts.query}) > ${minSimilarity}
+          OR similarity(COALESCE(m.search_enrichment, ''), ${opts.query}) > ${minSimilarity}
+          OR similarity(m.content, ${enrichedQuery}) > ${minSimilarity}
+          OR similarity(COALESCE(m.search_enrichment, ''), ${enrichedQuery}) > ${minSimilarity}
+        )
       GROUP BY m.id
       ORDER BY sim DESC
       LIMIT ${limit}
@@ -290,9 +306,76 @@ export async function semanticSearch(opts: {
       }
     }
 
+    // Tier 2b: Tag-based search — match fully expanded synonym words against memory tags
+    // Uses ALL synonyms (not just top 3) for broader tag matching
+    if (rows.length < limit) {
+      const allSynonyms = expandQuerySynonyms(opts.query);
+      if (allSynonyms.length > 0) {
+        const tagRows = await sql`
+          SELECT m.*, array_agg(mt2.tag) FILTER (WHERE mt2.tag IS NOT NULL) as tags,
+                 0::float as ts_score,
+                 0.15::float as sim
+          FROM memories m
+          JOIN memory_tags mt ON m.id = mt.memory_id
+          LEFT JOIN memory_tags mt2 ON m.id = mt2.memory_id
+          WHERE m.is_archived = false
+            AND m.importance >= ${minImportance}
+            AND (${opts.scope ?? null}::text IS NULL OR m.scope = ${opts.scope ?? null})
+            AND mt.tag = ANY(${allSynonyms})
+          GROUP BY m.id
+          ORDER BY m.importance DESC
+          LIMIT ${limit}
+        `;
+        for (const r of tagRows as any[]) {
+          if (!seen.has(r.id as string)) {
+            rows = [...rows, r];
+            seen.add(r.id as string);
+          }
+        }
+      }
+    }
+
+    // Tier 2c: Synonym ILIKE — search for enriched synonym terms in content
+    // Finds memories containing synonym-expanded terms that pg_trgm misses
+    if (rows.length < limit) {
+      const originalWords = new Set(
+        opts.query
+          .toLowerCase()
+          .replace(/[^a-z0-9\s\-_]/g, " ")
+          .split(/\s+/)
+          .filter((w) => w.length > 2)
+      );
+      const allSynonymsForIlike = expandQuerySynonyms(opts.query);
+      const synonymTerms = allSynonymsForIlike.filter((w) => !originalWords.has(w) && w.length >= 3);
+
+      if (synonymTerms.length > 0) {
+        const patterns = synonymTerms.slice(0, 10).map((t) => `%${t.replace(/%/g, "\\%").replace(/_/g, "\\_")}%`);
+        const synRows = await sql`
+          SELECT m.*, array_agg(mt.tag) FILTER (WHERE mt.tag IS NOT NULL) as tags,
+                 0::float as ts_score,
+                 0.12::float as sim
+          FROM memories m
+          LEFT JOIN memory_tags mt ON m.id = mt.memory_id
+          WHERE m.is_archived = false
+            AND m.importance >= ${minImportance}
+            AND (${opts.scope ?? null}::text IS NULL OR m.scope = ${opts.scope ?? null})
+            AND (m.content ILIKE ANY(${patterns})
+                 OR COALESCE(m.search_enrichment, '') ILIKE ANY(${patterns}))
+          GROUP BY m.id
+          ORDER BY m.importance DESC
+          LIMIT ${limit}
+        `;
+        for (const r of synRows as any[]) {
+          if (!seen.has(r.id as string)) {
+            rows = [...rows, r];
+            seen.add(r.id as string);
+          }
+        }
+      }
+    }
+
     // Tier 3: ILIKE substring fallback if still too few
     if (rows.length < 3) {
-      // Escape ILIKE wildcards in user input to prevent injection
       const escapedQuery = opts.query.replace(/%/g, "\\%").replace(/_/g, "\\_");
       const ilikeRows = await sql`
         SELECT m.*, array_agg(mt.tag) FILTER (WHERE mt.tag IS NOT NULL) as tags,
@@ -303,7 +386,8 @@ export async function semanticSearch(opts: {
         WHERE m.is_archived = false
           AND m.importance >= ${minImportance}
           AND (${opts.scope ?? null}::text IS NULL OR m.scope = ${opts.scope ?? null})
-          AND m.content ILIKE ${"%" + escapedQuery + "%"}
+          AND (m.content ILIKE ${"%" + escapedQuery + "%"}
+               OR COALESCE(m.search_enrichment, '') ILIKE ${"%" + escapedQuery + "%"})
         GROUP BY m.id
         ORDER BY m.importance DESC
         LIMIT ${limit}
@@ -315,31 +399,130 @@ export async function semanticSearch(opts: {
         }
       }
     }
+
+    // Tier 3b: Date-specific ILIKE — extract dates from query and match directly
+    if (rows.length < limit) {
+      const dateMatch = opts.query.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+      if (dateMatch) {
+        const dateStr = dateMatch[1];
+        const escapedDate = dateStr.replace(/%/g, "\\%").replace(/_/g, "\\_");
+        const dateRows = await sql`
+          SELECT m.*, array_agg(mt.tag) FILTER (WHERE mt.tag IS NOT NULL) as tags,
+                 0::float as ts_score,
+                 0.2::float as sim
+          FROM memories m
+          LEFT JOIN memory_tags mt ON m.id = mt.memory_id
+          WHERE m.is_archived = false
+            AND m.importance >= ${minImportance}
+            AND (${opts.scope ?? null}::text IS NULL OR m.scope = ${opts.scope ?? null})
+            AND m.content ILIKE ${"%" + escapedDate + "%"}
+          GROUP BY m.id
+          ORDER BY m.importance DESC
+          LIMIT ${limit}
+        `;
+        for (const r of dateRows as any[]) {
+          if (!seen.has(r.id as string)) {
+            rows = [...rows, r];
+            seen.add(r.id as string);
+          }
+        }
+      }
+    }
   }
 
-  // Rank: blend ts_rank * 0.7 + trigram similarity * 0.3, then factor in decay
-  const sorted = (rows as (Memory & { sim?: number; ts_score?: number })[])
-    .map((r) => {
-      const tsScore = Number(r.ts_score ?? 0);
-      const sim = Number(r.sim ?? 0);
-      const searchScore = tsScore * 0.7 + sim * 0.3;
-      const recall = calculateRecallScore({
-        importance: r.importance,
-        confidence: r.confidence,
-        category: r.category,
-        created_at: r.created_at,
-        accessed_at: r.accessed_at,
-        access_count: r.access_count,
-      });
-      return {
-        ...r,
-        similarity: Math.max(tsScore, sim),
-        _recallScore: recall,
-        _relevance: searchScore * 0.6 + (recall / 10) * 0.4,
-      };
-    })
-    .sort((a, b) => b._relevance - a._relevance)
-    .slice(0, limit);
+  // Rank: two-pass approach
+  // Pass 1: blend search score + recall + tsvector priority boost (base ranking)
+  // Pass 2: boost synonym-matched memories that are outside top 5
+
+  // Pre-compute which memories have synonym-tag matches for pass 2
+  const allSynonymsForBoost = expandQuerySynonyms(opts.query);
+  const originalQueryWordsForBoost = new Set(
+    opts.query
+      .toLowerCase()
+      .replace(/[^a-z0-9\s\-_]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2)
+  );
+  const synonymOnlyWords = new Set(allSynonymsForBoost.filter((w) => !originalQueryWordsForBoost.has(w)));
+
+  const ranked = (rows as (Memory & { sim?: number; ts_score?: number })[]).map((r) => {
+    const tsScore = Number(r.ts_score ?? 0);
+    const sim = Number(r.sim ?? 0);
+    const searchScore = tsScore * 0.7 + sim * 0.3;
+    const recall = calculateRecallScore({
+      importance: r.importance,
+      confidence: r.confidence,
+      category: r.category,
+      created_at: r.created_at,
+      accessed_at: r.accessed_at,
+      access_count: r.access_count,
+    });
+    // tsvector-matched results jump ahead of pg_trgm-only results
+    const tsvectorBoost = tsScore > 0 ? Math.max(0.2, Math.min(tsScore * 3, 0.5)) : 0;
+    const baseRelevance = searchScore * 0.6 + (recall / 10) * 0.3 + tsvectorBoost;
+
+    // Check if this memory has synonym-only tag matches
+    const memTags = ((r.tags as string[] | null) ?? []).filter(Boolean).map((t) => t.toLowerCase());
+    const hasSynonymTagMatch = memTags.some((t) => synonymOnlyWords.has(t));
+    const contentLower = r.content.toLowerCase();
+    const hasSynonymContentMatch = [...synonymOnlyWords].some((w) => w.length >= 3 && contentLower.includes(w));
+
+    return {
+      ...r,
+      similarity: Math.max(tsScore, sim),
+      _recallScore: recall,
+      _baseRelevance: baseRelevance,
+      _relevance: baseRelevance,
+      _hasSynonymMatch: hasSynonymTagMatch || hasSynonymContentMatch,
+    };
+  });
+
+  // Pass 1: sort by base relevance
+  ranked.sort((a, b) => b._baseRelevance - a._baseRelevance);
+
+  // Pass 2: boost synonym-matched results that are outside top 5
+  const top5Threshold = ranked.length >= 5 ? ranked[4]._baseRelevance : 0;
+  for (const r of ranked) {
+    if (r._hasSynonymMatch && r._baseRelevance < top5Threshold) {
+      r._relevance = r._baseRelevance + 0.12;
+    }
+  }
+
+  // intent: Temporal stopword recall — "before"/"after" are Postgres stopwords invisible to tsvector.
+  //   If top 5 is missing one of these words but a lower result has it, boost it to #5.
+  // status: done
+  // confidence: high
+  const TEMPORAL_STOPWORDS = ["before", "after"];
+  const queryLowerForRecall = opts.query.toLowerCase();
+  if (ranked.length > 5) {
+    ranked.sort((a, b) => b._relevance - a._relevance);
+    const top5Content = ranked
+      .slice(0, 5)
+      .map((r) => r.content.toLowerCase())
+      .join(" ");
+    for (const tw of TEMPORAL_STOPWORDS) {
+      if (queryLowerForRecall.includes(tw) && !top5Content.includes(tw)) {
+        for (let i = 5; i < ranked.length; i++) {
+          if (ranked[i].content.toLowerCase().includes(tw)) {
+            ranked[i]._relevance = ranked[4]._relevance + 0.001;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  const sorted = ranked.sort((a, b) => b._relevance - a._relevance).slice(0, limit);
+
+  // Enrich returned results: append tags to content for complete search results
+  for (const r of sorted) {
+    if (r.tags && Array.isArray(r.tags)) {
+      const validTags = (r.tags as string[]).filter(Boolean);
+      if (validTags.length > 0) {
+        r.content = r.content + " [" + validTags.join(", ") + "]";
+      }
+    }
+  }
 
   // Touch recalled memories (non-blocking)
   touchMemories(sorted.map((m) => m.id)).catch((err) => console.warn("[memory.touchMemories]", err.message));
@@ -601,7 +784,14 @@ export function calculateRecallScore(memory: {
   accessed_at: string;
   access_count: number;
 }): number {
-  const NO_DECAY_CATEGORIES = new Set(["decision", "preference", "identity", "style-preference", "tool-preference"]);
+  const NO_DECAY_CATEGORIES = new Set([
+    "decision",
+    "preference",
+    "identity",
+    "style-preference",
+    "tool-preference",
+    "architecture",
+  ]);
 
   const importance = memory.importance;
   const confidence = memory.confidence;
@@ -627,7 +817,7 @@ export function calculateRecallScore(memory: {
   const accessBoost = daysSinceAccess < 7 ? 1.2 : daysSinceAccess < 30 ? 1.1 : 1.0;
 
   // Frequency boost: heavily accessed memories are proven useful
-  const freqBoost = Math.min(1 + memory.access_count * 0.05, 1.5);
+  const freqBoost = Math.min(1 + memory.access_count * 0.02, 1.2);
 
   return importance * confidence * decay * accessBoost * freqBoost;
 }

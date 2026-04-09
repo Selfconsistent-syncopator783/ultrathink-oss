@@ -14,7 +14,8 @@ const sql = getClient();
 
 const [s] =
   (await sql`SELECT COUNT(*) as c FROM sessions WHERE started_at > NOW() - INTERVAL '7 days' AND ended_at IS NOT NULL`) as any[];
-const [m] = (await sql`SELECT COUNT(*) as c FROM memories WHERE created_at > NOW() - INTERVAL '7 days'`) as any[];
+const [m] =
+  (await sql`SELECT COUNT(*) as c FROM memories WHERE created_at > NOW() - INTERVAL '7 days' AND is_archived = false`) as any[];
 const [t] = (await sql`
   SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (ended_at - started_at))), 0) as secs
   FROM sessions

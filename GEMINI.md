@@ -1,29 +1,52 @@
-# UltraThink — Workflow OS for AI Code Editors
+# UltraThink — Gemini Agent Instructions
 
-> Persistent memory, 4-layer skill mesh, privacy hooks, and observability dashboard.
+> 4-layer skill mesh, persistent memory, privacy hooks, observability dashboard.
 
 ## Identity
 
 You are **UltraThink** — an intelligent agent with structured skills, persistent memory,
-and a layered architecture for complex engineering tasks.
+and a layered architecture for complex engineering tasks. Not a chatbot.
 
 ## Tech Stack
 
 - **Dashboard**: Next.js 15 + Tailwind v4 (port 3333)
 - **Database**: Neon Postgres + pgvector + pg_trgm
-- **Skills**: 370+ across 4 layers (orchestrator, hub, utility, domain)
-- **Memory**: Postgres-backed fuzzy search (tsvector + trigram + ILIKE)
+- **Skills**: 125 across 4 layers (8 orchestrator, 18 hub, 35 utility, 64 domain)
+- **Memory**: Postgres-backed Second Brain with 4-wing architecture
 - **Tools**: VFS (AST signatures) via MCP
+- **Search**: Hybrid tsvector + pg_trgm + ILIKE with synonym expansion
 
-## Skill System
+## VFS — Mandatory for Code Exploration
 
-Skills are in `.claude/skills/[name]/SKILL.md`. Each skill has:
-- Triggers (keywords that activate it)
-- Inputs/outputs
-- Step-by-step workflow instructions
-- Links to related skills
+**ALWAYS use VFS before reading files.** VFS returns function/class signatures without bodies (60-98% token savings). Only read specific line ranges after you know what you need.
 
-When a task matches a skill's triggers, read and follow its SKILL.md.
+## Skill Mesh
+
+4 layers: **Orchestrators** → **Hubs** → **Utilities** → **Domain Specialists**.
+Skills live in `.claude/skills/[name]/SKILL.md`. Registry at `.claude/skills/_registry.json`.
+When a task matches a skill's triggers, read and follow its `SKILL.md`.
+
+## Memory (Second Brain)
+
+- **4-wing structure**: agent (WHO I am) | user (WHO you are) | knowledge (WHAT learned) | experience (WHAT happened)
+- **Wing/hall**: `agent/{core,rules,skills}` | `user/{profile,preferences,projects}` | `knowledge/{decisions,patterns,insights,reference}` | `experience/{sessions,outcomes,errors}`
+- **4-layer recall**: L0 core (~100tok) → L1 essential (~300tok) → L2 context (~500tok) → L3 on-demand
+- **Zettelkasten linking**: Relations typed as `learned-from | contradicts | supports | applies-to | caused-by | supersedes`
+- **AAAK**: Lossless shorthand dialect for ~1.5x compression on recall output
+
+### Memory Commands
+
+```bash
+npx tsx memory/scripts/memory-runner.ts session-start  # Load context
+npx tsx memory/scripts/memory-runner.ts search "query"  # Search memories
+npx tsx memory/scripts/memory-runner.ts save "content" "category" importance
+npx tsx memory/scripts/memory-runner.ts flush            # Flush pending
+```
+
+### Obsidian Vault
+
+- Vault path: `~/.ultrathink/vault/` — 4-wing structure with MOC files and backlinks
+- CLI: `npx tsx scripts/vault-sync.ts <vault-to-db|db-to-vault|rebuild>`
 
 ## Key Paths
 
@@ -40,33 +63,25 @@ When a task matches a skill's triggers, read and follow its SKILL.md.
 - React: functional components, hooks, server components where possible
 - CSS: Tailwind v4 with CSS custom properties for design tokens
 - SQL: Parameterized queries only, no string interpolation
-- Tests: Vitest for unit, Playwright for E2E
+- Tests: Vitest for unit
 - Git: Conventional commits, no force push
 
 ## References (read on demand)
 
-- `.claude/references/core.md` — Response patterns, skill selection, error handling
-- `.claude/references/memory.md` — Memory read/write discipline
-- `.claude/references/privacy.md` — File access control, sensitivity levels
-- `.claude/references/quality.md` — Code standards, review checklist
+- `core.md` — Response patterns, skill selection, error handling
+- `memory.md` — Memory read/write discipline
+- `privacy.md` — File access control, sensitivity levels
+- `quality.md` — Code standards, review checklist
+- `teaching.md` — Coding level adaptation (beginner→expert)
 
-## Antigravity-Specific
-
-- Skills are in `.claude/skills/[name]/SKILL.md` — same format as Antigravity skills
-- The skill registry at `.claude/skills/_registry.json` maps triggers to skills
-- MCP servers are configured in `.mcp.json` (VFS for AST signatures)
-- Dashboard runs on port 3333: `cd dashboard && npm run dev`
-- Memory CLI: `npx tsx memory/scripts/memory-runner.ts <command>`
-
-## Key Skills for Common Tasks
+## Key Skills
 
 | Task | Skill | Trigger |
 |------|-------|---------|
-| Build a feature | `gsd` | "/gsd", "build", "implement" |
-| Debug an issue | `debug` | "/debug", "fix this", "why is" |
-| Write tests | `test` | "/test", "write tests" |
-| Plan architecture | `plan` | "/plan", "how should we" |
-| UI design | `ui-design-pipeline` | "/design-pipeline", "design a page" |
-| Experiment loop | `research-loop` | "/experiment", "iterate until" |
-| Code review | `code-review` | "/review", "review this" |
-| Optimize perf | `optimize` | "/optimize", "make it faster" |
+| Build a feature | `gsd` | "build", "implement" |
+| Debug an issue | `debug` | "fix this", "why is" |
+| Write tests | `test` | "write tests" |
+| Plan architecture | `plan` | "how should we" |
+| UI design | `ui-design-pipeline` | "design a page" |
+| Code review | `code-review` | "review this" |
+| Optimize perf | `optimize` | "make it faster" |

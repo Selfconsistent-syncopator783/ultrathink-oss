@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/ultrathink-banner.png" alt="UltraThink" width="600" />
+  <img src="docs/assets/ultrathink-logo-1.png" alt="UltraThink" width="600" />
 </p>
 
 <h1 align="center">UltraThink</h1>
@@ -154,7 +154,7 @@ npm run dashboard:dev
 │  │                  debug)    test)        stripe)      │   │
 │  │                                                      │   │
 │  │  Auto-trigger: intent detection + graph traversal    │   │
-│  │  394 skills, <30ms scoring per prompt                │   │
+│  │  388 skills, <30ms scoring per prompt                │   │
 │  └─────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -163,13 +163,11 @@ npm run dashboard:dev
 
 | Event | Hook | What it does |
 |-------|------|-------------|
-| **SessionStart** | `memory-session-start.sh` | Recalls memories, identity graph, loads adaptations |
-| **SessionStart** | `codeintel-session-check.sh` | Reindexes stale projects (>24h) in background |
+| **SessionStart** | `memory-session-start.sh` | Recalls memories, loads context |
 | **UserPromptSubmit** | `prompt-submit.sh` | Scores skills, recalls relevant memories, injects context |
 | **PreToolUse** | `privacy-hook.sh` | Blocks access to `.env`, `.pem`, credentials |
 | **PreToolUse** | `agent-tracker-pre.sh` | Tracks spawned subagents for statusline |
 | **PostToolUse** | `post-edit-quality.sh` | Auto-formats (Biome/Prettier), validates JSON/shell |
-| **PostToolUse** | `post-edit-codeintel.sh` | Incrementally re-indexes edited files |
 | **PostToolUse** | `memory-auto-save.sh` | Saves architectural changes (migrations, schemas, configs) |
 | **PostToolUse** | `tool-observe.sh` | Batches tool usage stats (file append, flushed at session end) |
 | **PostToolUse** | `context-monitor.sh` | Warns at 65%/75% context usage, detects stuck agents |
@@ -184,13 +182,24 @@ npm run dashboard:dev
 
 ### Memory System
 
-Postgres-backed persistent memory with 3-tier search:
+Postgres-backed persistent memory organized as a **Second Brain** with 4 wings:
+
+| Wing | Purpose | Halls |
+|------|---------|-------|
+| `agent` | Who the agent is | core, rules, skills |
+| `user` | Who the user is | profile, preferences, projects |
+| `knowledge` | What has been learned | decisions, patterns, insights, reference |
+| `experience` | What happened | sessions, outcomes, errors |
+
+**3-tier hybrid search** with write-time synonym enrichment:
 
 1. **tsvector** full-text search (best precision)
 2. **pg_trgm** trigram fuzzy matching (typo-tolerant)
 3. **ILIKE** substring fallback
 
-Memories are scoped by project, categorized (preference, solution, architecture, pattern, insight, decision), and ranked by importance (1-10) and confidence (0-1).
+Two-pass ranking with temporal stopword recall, frequency decay protection, and tag-content enrichment ensure the right memory surfaces first.
+
+Memories are scoped by project, categorized (preference, solution, architecture, pattern, insight, decision), and ranked by importance (1-10) and confidence (0-1). An Obsidian vault at `~/.ultrathink/vault/` mirrors the MemPalace structure for human editing.
 
 ```bash
 # CLI commands
@@ -198,6 +207,49 @@ npx tsx memory/scripts/memory-runner.ts search "authentication pattern"
 npx tsx memory/scripts/memory-runner.ts save "content" "category" importance
 npx tsx memory/scripts/memory-runner.ts flush
 npx tsx memory/scripts/memory-runner.ts session-start
+```
+
+### LongMemEval Benchmark
+
+The memory system is validated against a LongMemEval-inspired benchmark (50 questions, 5 ability categories):
+
+| Ability | Questions | Pass Threshold | Score |
+|---------|-----------|---------------|-------|
+| Information Extraction | 10 | ≥80% | **100%** |
+| Multi-Session Reasoning | 10 | ≥60% | **100%** |
+| Temporal Reasoning | 10 | ≥60% | **100%** |
+| Knowledge Updates | 10 | ≥70% | **100%** |
+| Abstention | 10 | ≥80% | **100%** |
+
+**50/50 (100%)** — Tests retrieval quality across information extraction, cross-memory synthesis, temporal ordering, knowledge freshness, and refusal-when-uncertain. No LLM in the loop — pure search ranking validation.
+
+```bash
+npx vitest run tests/longmemeval.test.ts
+```
+
+### AAAK — Lossless Shorthand Dialect
+
+AAAK compresses natural language into a structured shorthand that any LLM can decode — ~1.5x compression on recall output, zero information loss.
+
+```
+Natural (~1000 tokens):
+  "Priya manages the Driftwood team: Kai (backend, 3 years), Soren (frontend),
+   Maya (infrastructure), and Leo (junior, started last month). They're building
+   a SaaS analytics platform. Current sprint: auth migration to Clerk."
+
+AAAK (~120 tokens):
+  TEAM: PRI(lead) | KAI(backend,3yr) SOR(frontend) MAY(infra) LEO(junior,new)
+  PROJ: DRIFTWOOD(saas.analytics) | SPRINT: auth.migration→clerk
+```
+
+Used in recall context injection to fit more memories into the token budget. Grammar supports category codes, structural markers (`|`, `→`, `+`, `>`), and automatic abbreviation of common dev terms.
+
+```bash
+# AAAK-compressed context injection
+npx tsx memory/scripts/memory-runner.ts aaak-context
+
+# Programmatic
+recall(scope, { aaak: true })
 ```
 
 ### Skill Mesh
@@ -280,6 +332,9 @@ erDiagram
         vector embedding
         tsvector search_vector
         text search_enrichment
+        varchar wing
+        varchar hall
+        smallint layer
         boolean is_archived
         boolean is_compacted
         int access_count
@@ -589,7 +644,7 @@ ultrathink/
 │   │   ├── post-edit-quality.sh # Auto-format + validation
 │   │   ├── statusline.sh        # CLI status bar
 │   │   └── ...
-│   ├── skills/            # 394 skill definitions (SKILL.md files)
+│   ├── skills/            # 388 skill definitions (SKILL.md files)
 │   │   ├── _registry.json # Master skill index with triggers + graph edges
 │   │   ├── react/SKILL.md
 │   │   ├── nextjs/SKILL.md
@@ -620,11 +675,6 @@ ultrathink/
 │   │   ├── usage/         # Token costs
 │   │   └── ...
 │   └── lib/               # Shared utilities, DB client
-├── code-intel/            # Cross-file dependency graph (MCP server)
-│   └── src/
-│       ├── indexer.ts     # AST parser + file indexing
-│       ├── query.ts       # Graph queries (symbols, deps, impact)
-│       └── ...
 ├── widgets/               # Desktop widget (macOS Ubersicht)
 ├── scripts/
 │   ├── setup.sh           # One-command project setup
@@ -660,10 +710,6 @@ npm run dashboard:build         # Production build
 npx tsx memory/scripts/memory-runner.ts search "query"
 npx tsx memory/scripts/memory-runner.ts flush
 npx tsx memory/scripts/memory-runner.ts compact
-
-# Code Intelligence
-npm run codeintel:build         # Compile TypeScript
-npm run codeintel:index         # Index current project
 
 # Quality
 npm run lint                    # ESLint

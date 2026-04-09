@@ -32,6 +32,7 @@ import {
   findSimilar,
   createRelation,
   getMemoryGraph,
+  passesQualityGate,
   type CreateMemoryInput,
 } from "../src/memory.js";
 import { logHookEvent } from "../src/hooks.js";
@@ -40,6 +41,8 @@ import {
   linkToIdentity,
   setPreference,
   getIdentity,
+  getAgentIdentity,
+  introspectRules,
   syncInferredIdentity,
   formatIdentityContext,
   detectConflicts,
@@ -65,6 +68,7 @@ import {
 } from "../src/adaptation.js";
 import { createJournal } from "../src/plans.js";
 import { createDecision } from "../src/decisions.js";
+import { recall } from "../src/recall.js";
 
 // Load .env from project root
 const projectRoot = resolve(import.meta.dirname, "../..");
@@ -82,39 +86,6 @@ function getSessionFile(): string {
 
 const command = process.argv[2];
 const args = process.argv.slice(3);
-
-/** Shared recall logic used by both sessionStart and recallOnly */
-async function buildMemoryContext(scope: string): Promise<{
-  preferences: Awaited<ReturnType<typeof searchMemories>>;
-  projectMemories: Awaited<ReturnType<typeof searchMemories>>;
-  crossProject: Awaited<ReturnType<typeof searchMemories>>;
-  allMemories: Awaited<ReturnType<typeof searchMemories>>;
-}> {
-  // Parallel fetch — all 6 queries run concurrently (~100ms instead of ~700ms sequential)
-  const [preferences, projectSolutions, projectArchitecture, projectPatterns, projectInsights, crossProject] =
-    await Promise.all([
-      searchMemories({ category: "preference", limit: 8, minImportance: 1 }),
-      searchMemories({ category: "solution", scope, limit: 10, minImportance: 1 }),
-      searchMemories({ category: "architecture", scope, limit: 8, minImportance: 1 }),
-      searchMemories({ category: "pattern", scope, limit: 8, minImportance: 1 }),
-      searchMemories({ category: "insight", scope, limit: 5, minImportance: 1 }),
-      searchMemories({ limit: 5, minImportance: 7 }),
-    ]);
-  const projectMemories = [...projectSolutions, ...projectArchitecture, ...projectPatterns, ...projectInsights];
-
-  const seen = new Set<string>();
-  const allMemories: typeof projectMemories = [];
-  for (const list of [preferences, projectMemories, crossProject]) {
-    for (const m of list) {
-      if (!seen.has(m.id)) {
-        allMemories.push(m);
-        seen.add(m.id);
-      }
-    }
-  }
-
-  return { preferences, projectMemories, crossProject, allMemories };
-}
 
 async function sessionStart() {
   const sql = getClient();
@@ -148,124 +119,28 @@ async function sessionStart() {
   writeFileSync(getSessionFile(), sessionId);
   if (!existsSync(MEMORIES_DIR)) mkdirSync(MEMORIES_DIR, { recursive: true });
 
-  // Recall core memories (shared with recallOnly)
-  const { preferences, projectMemories, allMemories: baseMemories } = await buildMemoryContext(scope);
-
-  // Additional recalls — run in parallel (semanticSearch + decisions don't depend on each other)
-  const [contextMemories, decisions] = await Promise.all([
-    semanticSearch({ query: projectName, scope, limit: 10, minImportance: 2 }).catch(
-      () => [] as Awaited<ReturnType<typeof semanticSearch>>
-    ),
-    searchMemories({ category: "decision", scope, limit: 8, minImportance: 1 }),
-  ]);
-
-  // Graph neighbors (1 hop from project memories)
-  const projectIds = projectMemories.map((m) => m.id);
-  let neighbors: typeof projectMemories = [];
-  if (projectIds.length > 0) {
-    const edges = await sql`
-      SELECT DISTINCT CASE WHEN source_id = ANY(${projectIds}) THEN target_id ELSE source_id END as neighbor_id
-      FROM memory_relations WHERE source_id = ANY(${projectIds}) OR target_id = ANY(${projectIds}) LIMIT 5
-    `;
-    const neighborIds = (edges as any[]).map((e: Record<string, unknown>) => e.neighbor_id as string);
-    if (neighborIds.length > 0) {
-      neighbors = (await sql`
-        SELECT m.*, array_agg(mt.tag) FILTER (WHERE mt.tag IS NOT NULL) as tags
-        FROM memories m LEFT JOIN memory_tags mt ON m.id = mt.memory_id
-        WHERE m.id = ANY(${neighborIds}) AND m.is_archived = false GROUP BY m.id
-      `) as typeof projectMemories;
-    }
-  }
-
-  // Dedup: merge additional results into base set
-  const seen = new Set(baseMemories.map((m) => m.id));
-  const allMemories = [...baseMemories];
-  for (const list of [decisions, contextMemories, neighbors]) {
-    for (const m of list) {
-      if (!seen.has(m.id)) {
-        allMemories.push(m);
-        seen.add(m.id);
-      }
-    }
-  }
-
-  await logHookEvent({
-    event_type: "session_start",
-    severity: "info",
-    description: `Session ${projectName}: ${allMemories.length} recalled (${preferences.length} prefs, ${decisions.length} decisions, ${neighbors.length} linked)`,
-    hook_name: "memory-session-start",
-    session_id: sessionId,
-  });
-
-  // Sync inferred identity from behavioral patterns (file edits, commands)
-  // This mines auto-memory entries and creates tool-preference nodes
+  // Sync inferred identity from behavioral patterns (non-blocking)
   try {
     await syncInferredIdentity(scope);
   } catch (err) {
     console.error("Identity sync warning:", (err as Error).message);
   }
 
-  // Recall identity graph (now includes both explicit prefs AND inferred behavior)
-  const identityData = await getIdentity(scope);
-  const identityContext = formatIdentityContext(identityData);
+  // Unified 4-layer recall — replaces 6-query parallel assembly
+  const context = await recall(scope, {
+    projectName,
+    maxTokens: 900,
+    includeAdaptations: true,
+    compact: false,
+  });
 
-  // Format with sections (max 2KB)
-  let context = "";
-  if (allMemories.length > 0 || identityContext) {
-    const sections: string[] = [];
-
-    if (preferences.length > 0) {
-      sections.push("**Preferences:**\n" + preferences.map((m) => `- ${m.content}`).join("\n"));
-    }
-    const uniqueDecisions = decisions.filter((m) => !preferences.some((p) => p.id === m.id));
-    if (uniqueDecisions.length > 0) {
-      sections.push("**Decisions:**\n" + uniqueDecisions.map((m) => `- ${m.content}`).join("\n"));
-    }
-    const other = allMemories.filter(
-      (m) => m.category !== "preference" && m.category !== "decision" && m.category !== "identity"
-    );
-    if (other.length > 0) {
-      sections.push(
-        "**Context:**\n" +
-          other
-            .map((m) => {
-              const tags = m.tags?.filter(Boolean).join(", ") || "";
-              return `- [${m.category}] ${m.content}${tags ? ` [${tags}]` : ""}`;
-            })
-            .join("\n")
-      );
-    }
-
-    if (identityContext) {
-      sections.unshift(identityContext);
-    }
-
-    // ☸ Tekiō — inject adaptations (hard rules from experience)
-    let wheelSection = "";
-    try {
-      const adaptations = await getActiveAdaptations(sql, scope);
-      wheelSection = formatAdaptations(adaptations);
-    } catch {
-      // Adaptation table may not exist yet — silently skip
-    }
-
-    // Dynamic budget: scale up to 8192 if content warrants it
-    // Base 5120, expand if brain+wheel would both benefit from more space
-    const brainRaw = `## Brain — ${projectName}\n\n` + sections.join("\n\n") + "\n";
-    const TOTAL_BUDGET = Math.min(8192, Math.max(5120, brainRaw.length + wheelSection.length + 512));
-    const BRAIN_TARGET = Math.round(TOTAL_BUDGET * 0.6);
-    const WHEEL_TARGET = TOTAL_BUDGET - BRAIN_TARGET;
-    const brainContent = `## Brain — ${projectName}\n\n` + sections.join("\n\n") + "\n";
-    const brainOverflow = Math.max(0, brainContent.length - BRAIN_TARGET);
-    const wheelOverflow = Math.max(0, wheelSection.length - WHEEL_TARGET);
-    // Each section can borrow unused space from the other
-    const maxWheel = WHEEL_TARGET + Math.max(0, BRAIN_TARGET - brainContent.length);
-    const maxBrain = BRAIN_TARGET + Math.max(0, WHEEL_TARGET - wheelSection.length);
-    const trimmedBrain = brainContent.length > maxBrain ? brainContent.slice(0, maxBrain) : brainContent;
-    const trimmedWheel = wheelSection.length > maxWheel ? wheelSection.slice(0, maxWheel) : wheelSection;
-
-    context = trimmedBrain + (trimmedWheel ? "\n" + trimmedWheel + "\n" : "");
-  }
+  await logHookEvent({
+    event_type: "session_start",
+    severity: "info",
+    description: `Session ${projectName}: unified recall (4-layer)`,
+    hook_name: "memory-session-start",
+    session_id: sessionId,
+  });
 
   process.stdout.write(JSON.stringify({ additionalContext: context || undefined }));
 }
@@ -274,34 +149,12 @@ async function recallOnly() {
   const cwd = process.env.ULTRATHINK_CWD || process.cwd();
   const scope = cwd.split("/").slice(-2).join("/");
 
-  // Reuse shared recall logic (no session creation, no decisions/neighbors)
-  const { allMemories } = await buildMemoryContext(scope);
-
-  // ☸ Tekiō — inject adaptations (same as sessionStart)
-  let wheelSection = "";
-  try {
-    const sql = getClient();
-    const adaptations = await getActiveAdaptations(sql, scope);
-    wheelSection = formatAdaptations(adaptations);
-  } catch {
-    // Adaptation table may not exist yet — silently skip
-  }
-
-  let context = "";
-  if (allMemories.length > 0 || wheelSection) {
-    const filtered = allMemories.filter((m) => m.category !== "identity");
-    const lines = filtered.map((m) => {
-      const tags = m.tags?.filter(Boolean).join(", ") || "";
-      const tagStr = tags ? ` [${tags}]` : "";
-      return `- [${m.category}] ${m.content}${tagStr} (importance: ${m.importance})`;
-    });
-    const memoryContent = lines.length > 0 ? "## Recalled Memories\n\n" + lines.join("\n") + "\n" : "";
-    // Dynamic budget — scale up to 8192 if content warrants it
-    const totalBudget = Math.min(8192, Math.max(5120, memoryContent.length + wheelSection.length + 512));
-    const maxMemory = totalBudget - wheelSection.length;
-    const trimmedMemory = memoryContent.length > maxMemory ? memoryContent.slice(0, maxMemory) : memoryContent;
-    context = trimmedMemory + (wheelSection ? "\n" + wheelSection + "\n" : "");
-  }
+  // Unified 4-layer recall (no session creation)
+  const context = await recall(scope, {
+    maxTokens: 900,
+    includeAdaptations: true,
+    compact: false,
+  });
 
   process.stdout.write(JSON.stringify({ additionalContext: context || undefined }));
 }
@@ -752,71 +605,35 @@ function getSessionId(): string | null {
 // status: done
 // confidence: high
 async function compactContext() {
-  const sql = getClient();
   const cwd = process.env.ULTRATHINK_CWD || process.cwd();
   const scope = cwd.split("/").slice(-2).join("/");
-  const MAX_CHARS = 3000;
-  const lines: string[] = [];
 
-  // 1. Top 10 memories by importance
-  try {
-    const memories = (await sql`
-      SELECT content, importance, scope, category
-      FROM memories
-      WHERE is_archived = false
-      ORDER BY importance DESC, accessed_at DESC NULLS LAST
-      LIMIT 10
-    `) as { content: string; importance: number; scope: string; category: string }[];
+  // Unified 4-layer recall in compact mode (3KB cap)
+  const context = await recall(scope, {
+    maxTokens: 750,
+    includeAdaptations: true,
+    compact: true,
+  });
 
-    for (const m of memories) {
-      const scopeLabel = m.scope || "global";
-      const truncated = m.content.replace(/\n/g, " ").slice(0, 200);
-      lines.push(`[MEM:${m.importance}] ${scopeLabel}/${m.category}: ${truncated}`);
-    }
-  } catch {
-    // memories table may not exist
-  }
+  process.stdout.write(JSON.stringify({ additionalContext: context || undefined }));
+}
 
-  // 2. Active identity nodes (preferences, style, tools)
-  try {
-    const nodes = (await sql`
-      SELECT type, label, category
-      FROM identity_nodes
-      WHERE is_active = true
-        AND type IN ('preference', 'style', 'tool')
-      ORDER BY updated_at DESC NULLS LAST
-      LIMIT 15
-    `) as { type: string; label: string; category: string }[];
+// intent: AAAK-compressed context — lossless shorthand dialect for AI agents
+// status: done
+// confidence: high
+async function aaakContext() {
+  const cwd = process.env.ULTRATHINK_CWD || process.cwd();
+  const scope = cwd.split("/").slice(-2).join("/");
 
-    for (const n of nodes) {
-      const key = n.category || n.type;
-      lines.push(`[ID:${n.type}] ${key}: ${n.label}`);
-    }
-  } catch {
-    // identity_nodes table may not exist
-  }
+  // AAAK mode: same budget as compact, but uses shorthand encoding
+  const context = await recall(scope, {
+    maxTokens: 750,
+    includeAdaptations: true,
+    compact: true,
+    aaak: true,
+  });
 
-  // 3. Active adaptations
-  try {
-    const adaptations = await getActiveAdaptations(sql, scope);
-    for (const a of adaptations) {
-      const trigger = (a.trigger_pattern || "").replace(/\n/g, " ").slice(0, 80);
-      const response = (a.adaptation_rule || "").replace(/\n/g, " ").slice(0, 80);
-      lines.push(`[ADAPT:${a.severity}] ${trigger} → ${response}`);
-    }
-  } catch {
-    // adaptations table may not exist
-  }
-
-  // 4. Cap total output at MAX_CHARS
-  let output = "";
-  for (const line of lines) {
-    const candidate = output ? output + "\n" + line : line;
-    if (candidate.length > MAX_CHARS) break;
-    output = candidate;
-  }
-
-  process.stdout.write(JSON.stringify({ additionalContext: output || undefined }));
+  process.stdout.write(JSON.stringify({ additionalContext: context || undefined }));
 }
 
 // Extract tool/framework preferences as keyword array for skill scoring
@@ -943,6 +760,23 @@ async function main() {
     case "identity-set":
       await identitySet();
       break;
+    case "agent-rules": {
+      const ruleScope = args[0] || undefined;
+      const result = await introspectRules(ruleScope);
+      console.log(`Agent Rules (${result.rules.length}):`);
+      for (const r of result.rules) {
+        console.log(`  [imp:${r.importance}] ${r.content}`);
+      }
+      if (result.adaptations.length > 0) {
+        console.log(`\nDefensive Adaptations (${result.adaptations.length}):`);
+        for (const a of result.adaptations) {
+          console.log(`  [sev:${a.severity}] ${a.rule.slice(0, 120)}`);
+        }
+      }
+      process.stdout.write(JSON.stringify(result));
+      break;
+    }
+
     case "conflicts": {
       const scope = args[0] || process.cwd().split("/").slice(-2).join("/");
       const conflicts = await detectConflicts(scope);
@@ -1271,6 +1105,10 @@ async function main() {
 
     case "compact-context":
       await compactContext();
+      break;
+
+    case "aaak-context":
+      await aaakContext();
       break;
 
     default:

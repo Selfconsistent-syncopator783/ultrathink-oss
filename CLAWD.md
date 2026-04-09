@@ -1,4 +1,4 @@
-# UltraThink OSS — OpenClaw Config
+# UltraThink — OpenClaw Config
 
 ## Identity
 
@@ -19,7 +19,7 @@ cp -r openclaw/skills/* ~/.openclaw/skills/
 {
   "skills": {
     "load": {
-      "extraDirs": ["/path/to/ultrathink-oss/openclaw/skills"]
+      "extraDirs": ["/path/to/ultrathink/openclaw/skills"]
     }
   }
 }
@@ -35,6 +35,11 @@ Add to `~/.openclaw/openclaw.json` under `mcpServers`:
     "command": "npx",
     "args": ["tsx", "<ULTRATHINK_ROOT>/memory/scripts/memory-runner.ts", "mcp-serve"],
     "env": { "DATABASE_URL": "<your-neon-url>" }
+  },
+  "ultrathink-code-intel": {
+    "command": "node",
+    "args": ["<ULTRATHINK_ROOT>/code-intel/dist/mcp-server.js"],
+    "env": { "DATABASE_URL": "<your-neon-url>" }
   }
 }
 ```
@@ -45,6 +50,7 @@ Add to `~/.openclaw/openclaw.json` under `mcpServers`:
 |-------|-------|--------|
 | `ultrathink` | Core orchestrator — routes to skill mesh | Full |
 | `ultrathink_memory` | `memory-search`, `memory-save`, `memory-recall` | Full |
+| `ultrathink_code_intel` | `code-symbols`, `code-deps`, `code-dependents`, `code-impact` | Full |
 | `ultrathink_review` | Multi-pass quality gate | Suggest-only |
 
 ## UltraThink Skill Exposure
@@ -83,11 +89,12 @@ Add to `~/.openclaw/openclaw.json` under `mcpServers`:
 
 ## Context
 
-UltraThink OSS is a Workflow OS for AI editors with:
-- 45 active skills across 4 layers (340+ archived, zero token cost)
-- 20 lifecycle hooks (privacy, quality, observability)
-- Prompt analyzer with intent-based auto-trigger
-- Token-optimized by default (lean active set, instant restore)
+UltraThink is a Workflow OS for AI editors with:
+- 125+ skills across 4 layers (orchestrator → hub → utility → domain)
+- Persistent memory backed by Neon Postgres with fuzzy search + synonym expansion
+- Privacy hooks that block sensitive files before agent access
+- Adaptive learning (pattern reinforcement from failures and successes)
+- Observability dashboard (Next.js 15, port 3333)
 
 ## Safety Rules
 

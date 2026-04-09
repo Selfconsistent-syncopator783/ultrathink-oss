@@ -29,7 +29,7 @@ async function fetchStats() {
 
     const [memRows, memWeekRows, planRows, hookRows, sessionRows, spinRows] = (await Promise.all([
       sql`SELECT COUNT(*) as count FROM memories WHERE is_archived = false`,
-      sql`SELECT COUNT(*) as count FROM memories WHERE created_at > NOW() - INTERVAL '7 days'`,
+      sql`SELECT COUNT(*) as count FROM memories WHERE created_at > NOW() - INTERVAL '7 days' AND is_archived = false`,
       sql`SELECT COUNT(*) as count FROM plans`,
       sql`SELECT COUNT(*) as count FROM hook_events`,
       sql`SELECT COUNT(*) as count FROM sessions`,
