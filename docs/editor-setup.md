@@ -7,10 +7,18 @@ Step-by-step setup for each supported AI code editor.
 ## Table of Contents
 
 - [Claude Code (Full Integration)](#claude-code-full-integration)
+- [Codex CLI](#codex-cli) — see [install-codex.md](./install-codex.md)
 - [Cursor](#cursor)
 - [Windsurf](#windsurf)
 - [Antigravity (Google)](#antigravity-google)
 - [GitHub Copilot](#github-copilot)
+- [Zed](#zed) — see [install-zed.md](./install-zed.md)
+- [JetBrains / Junie](#jetbrains--junie) — see [install-jetbrains.md](./install-jetbrains.md)
+- [Warp](#warp) — see [install-warp.md](./install-warp.md)
+- [Continue.dev](#continuedev) — see [install-continue.md](./install-continue.md)
+- [Cline](#cline) — see [install-cline.md](./install-cline.md)
+- [Aider](#aider) — see [install-aider.md](./install-aider.md)
+- [Windows (WSL2 / Native)](#windows-wsl2--native) — see [install-windows.md](./install-windows.md)
 - [Syncing Editor Configs](#syncing-editor-configs)
 - [Feature Compatibility](#feature-compatibility)
 - [Constraints & Workarounds](#constraints--workarounds)
